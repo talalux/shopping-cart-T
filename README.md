@@ -78,9 +78,6 @@ SQLite เขียนได้ทีละ writer + UPDATE ตรวจ `Remain
 JWT key ใน `appsettings.Development.json` เป็นค่า dev เท่านั้น; prod ใช้ env `Jwt__Key`.
 เวลา "วันนี้" = วันตามเวลาเครื่อง server (`DateTime.Today`).
 
-## Frontend
-ยังไม่ได้ทำ (รอ brief รอบถัดไป)
-
 ## Frontend (Next.js 16)
 - **Auth = BFF:** `POST /api/auth/login` เรียก .NET แล้วตั้ง cookie `token` แบบ httpOnly + SameSite=Lax (secure ใน production); JS อ่าน token ไม่ได้ · `/api/proxy/*` แนบ `Authorization: Bearer` จาก cookie ส่งต่อไป `API_URL` (env ฝั่ง server เท่านั้น) รองรับ JSON, multipart (อัปโหลด .xlsx) และไฟล์ดาวน์โหลด (template)
 - **Route guard:** Next 16 เปลี่ยนชื่อ `middleware.ts` เป็น `proxy.ts` — `/admin/*` = Staff เท่านั้น (Customer ได้หน้า 403), `/orders` ต้อง login; `/shop /cart /orders/confirm/* /checkout/sent` เปิดทุกคน (ตัวจริงที่บังคับสิทธิ์คือ API ทุก request)
