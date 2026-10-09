@@ -1,0 +1,999 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shop Cart Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { theme: { extend: { fontFamily: { sans: ['"IBM Plex Sans Thai"','system-ui','sans-serif'] } } } }
+</script>
+<style>
+  body{font-family:"IBM Plex Sans Thai",system-ui,sans-serif}
+  .num{font-variant-numeric:tabular-nums}
+  :focus-visible{outline:2px solid #047857;outline-offset:2px}
+  button:focus-visible,a:focus-visible,summary:focus-visible{box-shadow:0 0 0 5px rgba(4,120,87,.18)}
+
+  /* ===== MOTION TOKENS (CSS ล้วน ย้ายเป็น tailwind.config / globals.css ได้ตรง) ===== */
+  :root{--dy:8px;--dx:100%;--pop:1.28;--shake:4px;--stag:35ms;--r0:0fr;--o0:1;--dur:.2s}
+  @media (prefers-reduced-motion:reduce){
+    :root{--dy:0px;--dx:0%;--pop:1;--shake:0px;--stag:0ms;--r0:1fr;--o0:0;--dur:.12s}
+  }
+  @keyframes pageIn{from{opacity:0;transform:translateY(var(--dy))}to{opacity:1;transform:none}}
+  @keyframes badgePop{0%{transform:scale(1)}45%{transform:scale(var(--pop))}100%{transform:scale(1)}}
+  @keyframes numBump{from{opacity:.25;transform:translateY(calc(var(--dy) * -.5))}to{opacity:1;transform:none}}
+  @keyframes flashInOut{0%{opacity:0;transform:translateY(calc(var(--dy) * .25))}8%{opacity:1;transform:none}85%{opacity:1}100%{opacity:0}}
+  @keyframes expandIn{from{grid-template-rows:var(--r0);opacity:0}to{grid-template-rows:1fr;opacity:1}}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(calc(var(--shake) * -1))}40%{transform:translateX(var(--shake))}60%{transform:translateX(calc(var(--shake) * -.6))}80%{transform:translateX(calc(var(--shake) * .4))}}
+  @keyframes drawerIn{from{transform:translateX(var(--dx));opacity:var(--o0)}to{transform:none;opacity:1}}
+  @keyframes drawerOut{from{transform:none;opacity:1}to{transform:translateX(var(--dx));opacity:var(--o0)}}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes fadeOut{from{opacity:1}to{opacity:0}}
+  @keyframes modalIn{from{opacity:0;translate:0 var(--dy)}to{opacity:1;translate:0 0}}
+
+  /* เปลี่ยนหน้า + stagger การ์ด (เปิดเฉพาะตอนเปลี่ยนหน้า/กรอง/ค้นหา ผ่านคลาส anim-page / anim-grid บน #view) */
+  #view.anim-page > :not(.stagger){animation:pageIn var(--dur) ease-out both}
+  /* reveal การ์ดตอนเข้าจอ (IntersectionObserver) : .rv-on อยู่บน <html> เฉพาะเมื่อ browser รองรับและไม่ได้ตั้ง reduced-motion */
+  .rv-on .rv:not(.in){opacity:0;transform:translateY(var(--dy))}
+  .rv.in:not(.now){animation:pageIn var(--dur) ease-out both;animation-delay:var(--rd,0ms)}
+  .badge-pop{animation:badgePop .22s ease-out}
+  .num-bump{animation:numBump .18s ease-out}
+  .flash-anim{animation:flashInOut 2s linear both}
+  /* กล่องที่ขยาย/ยุบด้วย grid-template-rows 0fr<->1fr */
+  .xp{display:grid;grid-template-rows:1fr}
+  .xp > .xp-in{min-height:0;overflow:hidden}
+  .xp.expand-in{animation:expandIn var(--dur) ease-out both}
+  .xp.collapsing{grid-template-rows:0fr;opacity:0;transition:grid-template-rows .2s ease-out,opacity .2s ease-out}
+  @media (prefers-reduced-motion:reduce){.xp.collapsing{grid-template-rows:1fr;transition:opacity .12s ease-out}}
+  .shake{animation:shake .24s ease-out 1}
+  .drawer-in{animation:drawerIn .22s ease-out both}
+  .drawer-out{animation:drawerOut .18s ease-in both}
+  .fade-in{animation:fadeIn .2s ease-out both}
+  .fade-out{animation:fadeOut .18s ease-in both}
+  .modal-in{animation:modalIn .2s ease-out both}
+  .toast{position:fixed;left:50%;bottom:1rem;transform:translate(-50%,16px);opacity:0;visibility:hidden;transition:transform .2s ease-out,opacity .2s ease-out,visibility 0s linear .2s}
+  .toast.show{transform:translate(-50%,0);opacity:1;visibility:visible;transition-delay:0s}
+  @media (prefers-reduced-motion:reduce){.toast{transform:translate(-50%,0)}}
+  /* rolling digit (odometer): เลขเก่าเลื่อนขึ้นหาย เลขใหม่เลื่อนขึ้นมาจากล่าง */
+  :root{--roll:100%}
+  @media (prefers-reduced-motion:reduce){:root{--roll:0%}}
+  @keyframes rollOut{from{transform:translateY(0);opacity:1}to{transform:translateY(calc(var(--roll) * -1));opacity:0}}
+  @keyframes rollIn{from{transform:translateY(var(--roll));opacity:0}to{transform:translateY(0);opacity:1}}
+  @keyframes rollW{from{width:var(--w0)}to{width:var(--w1)}}
+  .roll{display:inline-grid;grid-template-columns:minmax(0,1fr);justify-items:center;overflow:hidden;vertical-align:top;text-align:center;height:1.35em;height:1lh;animation:rollW .25s ease-out both}
+  .roll > *{grid-area:1/1;display:block;white-space:nowrap}
+  .roll.roll-static{animation:none}
+  .roll-old{animation:rollOut .25s ease-out both}
+  .roll-new{animation:rollIn .25s ease-out both}
+  /* chip: ตัวเลขใน stepper หลุดออกมาลอยโค้งไปหา badge (outer = แกน X, inner = แกน Y คนละ easing) แล้วกลายเป็น "+N" */
+  @keyframes chipX{from{transform:translateX(var(--x0))}to{transform:translateX(var(--x1))}}
+  @keyframes chipY{from{transform:translateY(var(--y0))}to{transform:translateY(var(--y1))}}
+  @keyframes chipS{0%{opacity:1;transform:translate(-50%,-50%) scale(var(--s0))}70%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-50%) scale(.9)}}
+  @keyframes chipBg{0%,20%{opacity:0}60%,100%{opacity:1}}
+  @keyframes chipN{0%,25%{opacity:1}55%,100%{opacity:0}}
+  @keyframes chipP{0%,30%{opacity:0}60%,100%{opacity:1}}
+  @keyframes stepRefill{0%,35%{opacity:0}100%{opacity:1}}
+  .chip{position:fixed;left:0;top:0;z-index:70;pointer-events:none;animation:chipX .46s cubic-bezier(.5,0,.7,1) both}
+  .chip-y{display:block;animation:chipY .46s cubic-bezier(.15,.7,.35,1) both}
+  .chip-s{position:relative;display:inline-grid;place-items:center;font-size:.75rem;line-height:1;padding:.3rem .6rem;white-space:nowrap;animation:chipS .46s linear both}
+  .chip-bg{position:absolute;inset:0;border-radius:9999px;background:#047857;box-shadow:0 4px 10px rgba(0,0,0,.2);animation:chipBg .46s linear both}
+  .chip-n,.chip-p{grid-area:1/1;position:relative;font-weight:600}
+  .chip-n{color:#1c1917;animation:chipN .46s linear both}
+  .chip-p{color:#fff;animation:chipP .46s linear both}
+  .step-reset{animation:stepRefill .35s ease-out both}
+  @media (prefers-reduced-motion:reduce){.step-reset{animation-duration:.12s}}
+  /* นำเข้า Excel */
+  .in-up{animation:pageIn var(--dur) ease-out both}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes pulseDot{0%,100%{opacity:.35}50%{opacity:1}}
+  .spinner{width:2rem;height:2rem;border-radius:9999px;border:3px solid #d6d3d1;border-top-color:#047857;animation:spin .8s linear infinite}
+  @media (prefers-reduced-motion:reduce){.spinner{animation:pulseDot 1.2s ease-in-out infinite;border-top-color:#d6d3d1;background:#047857}}
+  .dz{transition:background-color .15s ease-out,border-color .15s ease-out}
+  .dz.drag{background:#ecfdf5;border-color:#047857}
+  .sr-only-in{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  /* ปุ่มทุกปุ่ม */
+  button{transition:background-color .15s ease-out,border-color .15s ease-out,color .15s ease-out,transform .1s ease-out,box-shadow .15s ease-out,opacity .15s ease-out}
+  button:not(:disabled):active{transform:scale(.97)}
+  @media (prefers-reduced-motion:reduce){button:not(:disabled):active{transform:none}}
+</style>
+</head>
+<body class="bg-stone-50 text-stone-900 antialiased min-h-screen">
+
+<!-- ===== MOCKUP CONTROL BAR (ไม่ใช่ส่วนของระบบจริง) ===== -->
+<div class="bg-stone-900 text-stone-200 text-sm">
+  <div class="max-w-6xl mx-auto px-4 py-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+    <span class="text-xs uppercase tracking-wider text-stone-400">Mockup</span>
+    <div class="flex items-center gap-1 bg-stone-800 rounded-lg p-0.5" role="group" aria-label="สลับมุมมอง">
+      <button id="roleGuest" class="px-3 py-1 rounded-md">Guest</button>
+      <button id="roleCustomer" class="px-3 py-1 rounded-md">Customer</button>
+      <button id="roleStaff" class="px-3 py-1 rounded-md">Staff</button>
+    </div>
+    <nav id="pageTabs" class="flex gap-1 overflow-x-auto max-w-full"></nav>
+    <button id="resetBtn" class="ml-auto text-xs text-stone-400 underline underline-offset-2 hover:text-white">รีเซ็ตข้อมูลตัวอย่าง</button>
+  </div>
+</div>
+
+<!-- ===== APP NAVBAR ===== -->
+<header id="appNav" class="sticky top-0 z-30 bg-white border-b border-stone-200"></header>
+
+<main id="view" class="max-w-6xl mx-auto px-4 py-6"></main>
+
+<div id="drawerRoot"></div>
+<div id="modalRoot"></div>
+<div id="toast" class="toast z-[60] max-w-[90vw] rounded-lg bg-stone-900 text-white text-sm px-4 py-2.5 shadow-lg"></div>
+
+<script>
+/* ---------- ข้อมูลตัวอย่าง ---------- */
+const TODAY = new Date('2026-10-09T00:00:00'); // ตรึงวันที่ไว้ให้ mockup คงที่
+const NEAR_DAYS = 7;
+const TYPES = ['อาหารสด','เครื่องดื่ม','ของแห้ง','ของใช้'];
+const d = s => new Date(s+'T00:00:00');
+const daysTo = s => Math.round((d(s)-TODAY)/86400000);
+const fmtDate = s => d(s).toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'2-digit'});
+const baht = n => '฿'+n.toLocaleString('th-TH');
+
+const seed = () => ({
+  products:[
+   {code:'P-1001',name:'ไข่ไก่ เบอร์ 2 (แผง 30 ฟอง)',type:'อาหารสด',price:95,active:true,lots:[
+     {id:'L-260925-1',recv:'2026-09-25',qty:100,remain:62,exp:'2026-10-20'},
+     {id:'L-261005-1',recv:'2026-10-05',qty:120,remain:120,exp:'2026-11-02'}]},
+   {code:'P-1002',name:'นมสดพาสเจอร์ไรส์ 1 ลิตร',type:'เครื่องดื่ม',price:48,active:true,lots:[
+     {id:'L-260920-1',recv:'2026-09-20',qty:40,remain:6,exp:'2026-10-08'},
+     {id:'L-260928-1',recv:'2026-09-28',qty:40,remain:5,exp:'2026-10-14'},
+     {id:'L-261006-1',recv:'2026-10-06',qty:30,remain:3,exp:'2026-10-30'}]},
+   {code:'P-1003',name:'ขนมปังแซนด์วิช แผ่นหนา',type:'อาหารสด',price:39,active:true,lots:[
+     {id:'L-261007-1',recv:'2026-10-07',qty:30,remain:14,exp:'2026-10-12'}]},
+   {code:'P-1004',name:'โยเกิร์ตรสธรรมชาติ ถ้วย 150 ก.',type:'อาหารสด',price:18,active:true,lots:[
+     {id:'L-261001-1',recv:'2026-10-01',qty:60,remain:12,exp:'2026-10-13'},
+     {id:'L-261008-1',recv:'2026-10-08',qty:48,remain:48,exp:'2026-10-27'}]},
+   {code:'P-2001',name:'น้ำดื่ม 600 มล. (แพ็ก 12)',type:'เครื่องดื่ม',price:60,active:true,lots:[
+     {id:'L-260901-1',recv:'2026-09-01',qty:300,remain:240,exp:'2027-04-15'}]},
+   {code:'P-2002',name:'น้ำส้มคั้น 100% 1 ลิตร',type:'เครื่องดื่ม',price:85,active:true,lots:[
+     {id:'L-260915-1',recv:'2026-09-15',qty:24,remain:0,exp:'2026-10-01'}]},
+   {code:'P-3001',name:'ข้าวหอมมะลิ 5 กก.',type:'ของแห้ง',price:185,active:true,lots:[
+     {id:'L-260820-1',recv:'2026-08-20',qty:60,remain:40,exp:'2027-03-01'}]},
+   {code:'P-3002',name:'บะหมี่กึ่งสำเร็จรูป (แพ็ก 6)',type:'ของแห้ง',price:42,active:true,lots:[
+     {id:'L-260910-1',recv:'2026-09-10',qty:200,remain:150,exp:'2027-01-10'}]},
+   {code:'P-4001',name:'สบู่เหลว 500 มล.',type:'ของใช้',price:69,active:true,lots:[
+     {id:'L-260801-1',recv:'2026-08-01',qty:50,remain:18,exp:'2028-05-01'}]},
+   ...[
+     ['P-1005','ชีสแผ่นเชดดาร์ 12 แผ่น','อาหารสด',89,30,'2026-12-05'],
+     ['P-1006','ไส้กรอกหมู แพ็ก 6','อาหารสด',65,22,'2026-10-15'],
+     ['P-1007','อกไก่สไลซ์ 500 ก.','อาหารสด',79,15,'2026-10-12'],
+     ['P-1008','สลัดผักสำเร็จรูป','อาหารสด',45,9,'2026-10-11'],
+     ['P-2003','น้ำอัดลม 325 มล. (แพ็ก 6)','เครื่องดื่ม',72,80,'2027-02-01'],
+     ['P-2004','ชาเขียวพร้อมดื่ม 500 มล.','เครื่องดื่ม',20,120,'2027-01-20'],
+     ['P-2005','กาแฟกระป๋อง (แพ็ก 6)','เครื่องดื่ม',96,0,'2026-12-30'],
+     ['P-2006','นมถั่วเหลือง 1 ลิตร','เครื่องดื่ม',38,26,'2026-11-20'],
+     ['P-3003','น้ำมันพืช 1 ลิตร','ของแห้ง',62,70,'2027-05-10'],
+     ['P-3004','น้ำตาลทราย 1 กก.','ของแห้ง',28,200,'2028-01-01'],
+     ['P-3005','ซอสปรุงรส 700 มล.','ของแห้ง',34,55,'2027-08-15'],
+     ['P-3006','ปลากระป๋องซอสมะเขือเทศ (แพ็ก 3)','ของแห้ง',54,90,'2028-03-01'],
+     ['P-4003','แชมพู 400 มล.','ของใช้',119,40,'2028-09-01'],
+     ['P-4004','กระดาษทิชชู่ (แพ็ก 12 ม้วน)','ของใช้',99,60,'2029-01-01'],
+   ].map(([code,name,type,price,remain,exp])=>({code,name,type,price,active:true,lots:[{id:'L-'+code.slice(2),recv:'2026-09-30',qty:Math.max(remain,40),remain,exp}]})),
+   {code:'P-4002',name:'ผงซักฟอก 2.2 กก.',type:'ของใช้',price:129,active:false,lots:[
+     {id:'L-260801-2',recv:'2026-08-01',qty:30,remain:30,exp:'2028-02-01'}]},
+  ],
+  cart:[{code:'P-1002',qty:12},{code:'P-1001',qty:2},{code:'P-1003',qty:1}],
+  orders:[
+   {no:'ORD-0007',date:'2026-10-06',status:'สำเร็จ',items:[['ข้าวหอมมะลิ 5 กก.',2,185],['น้ำดื่ม 600 มล. (แพ็ก 12)',3,60]]},
+   {no:'ORD-0005',date:'2026-09-29',status:'สำเร็จ',items:[['ไข่ไก่ เบอร์ 2 (แผง 30 ฟอง)',4,95]]},
+   {no:'ORD-0002',date:'2026-09-14',status:'ยกเลิก',items:[['สบู่เหลว 500 มล.',1,69],['บะหมี่กึ่งสำเร็จรูป (แพ็ก 6)',5,42]]},
+  ],
+  batches:[
+   {id:'IMP-0011',file:'stock-oct-w1.xlsx',by:'staff@shop.test',at:'2026-10-08 14:20',lots:[['P-1004',48,'2026-10-27'],['P-2001',60,'2027-04-15'],['P-3001',20,'2027-03-01'],['P-4001',32,'2028-05-01']]},
+   {id:'IMP-0010',file:'restock-sept.xlsx',by:'staff@shop.test',at:'2026-09-25 09:10',lots:[['P-1001',100,'2026-10-20'],['P-3002',30,'2027-01-10']]},
+   {id:'IMP-0009',file:'dairy-sept.xlsx',by:'staff@shop.test',at:'2026-09-20 16:05',lots:[['P-1002',40,'2026-10-08'],['P-1002',20,'2026-10-14'],['P-1004',10,'2026-10-13']]},
+  ],
+  imports:[
+   {at:'2026-10-08 14:20',code:'P-1004',name:'โยเกิร์ตรสธรรมชาติ ถ้วย 150 ก.',qty:48,exp:'2026-10-27',by:'staff@shop.test'},
+   {at:'2026-10-06 09:05',code:'P-1002',name:'นมสดพาสเจอร์ไรส์ 1 ลิตร',qty:30,exp:'2026-10-30',by:'staff@shop.test'},
+   {at:'2026-10-05 16:40',code:'P-1001',name:'ไข่ไก่ เบอร์ 2 (แผง 30 ฟอง)',qty:120,exp:'2026-11-02',by:'staff@shop.test'},
+  ]
+});
+let DB = seed();
+
+/* ---------- helpers สต็อก (FEFO) ---------- */
+const lotState = l => daysTo(l.exp) < 0 ? 'expired' : (daysTo(l.exp) <= NEAR_DAYS ? 'near' : 'ok');
+const sellableLots = p => p.lots.filter(l=>l.remain>0 && lotState(l)!=='expired').sort((a,b)=>a.exp.localeCompare(b.exp));
+const sellable = p => sellableLots(p).reduce((s,l)=>s+l.remain,0);
+const expiredQty = p => p.lots.filter(l=>lotState(l)==='expired').reduce((s,l)=>s+l.remain,0);
+const nearestExp = p => (sellableLots(p)[0]||{}).exp || null;
+const byCode = c => DB.products.find(p=>p.code===c);
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- state ---------- */
+const PAGES = [
+  {id:'login',  label:'/login',  role:null},
+  {id:'shop',   label:'/shop',   role:['customer','guest','staff']},
+  {id:'cart',   label:'/cart',   role:['customer','guest','staff']},
+  {id:'check',  label:'/checkout/sent', role:['guest']},
+  {id:'confirm',label:'/orders/confirm/{uuid}', role:null},
+  {id:'orders', label:'/orders', role:['customer','staff']},
+  {id:'products',label:'/admin/products',role:['staff']},
+  {id:'import', label:'/admin/stock-import',role:['staff']},
+];
+const S = {role:'customer', page:'shop', q:'', type:'ทั้งหมด', cartErr:null, drawer:null, modal:null, openOrder:null, prefCode:'', anim:null, bump:null, expandCode:null, tick:0, seen:new Set(), now:new Set(), rolls:{}, impMode:'single', xl:{st:'pick',file:null,scn:'err',err:null,filter:false,dup:false,ack:false,result:null,openBatch:null}, revealed:new Set(), pend:{}, stepReset:null, holdBadge:false, badgeVal:0, chips:0, lastTotal:undefined, cstate:'ok', pending:null, cool:0, sim429:false, g:{name:'',mode:'email',contact:'',errs:{},rate:null}, undo:null, pick:{}, flash:null};
+const EMAIL = {customer:'customer@shop.test', staff:'staff@shop.test', guest:'ยังไม่ได้เข้าสู่ระบบ'};
+const ROLE_TH = {customer:'ลูกค้า', staff:'เจ้าหน้าที่', guest:'ผู้เยี่ยมชม'};
+const allowed = pg => !pg.role || pg.role.includes(S.role);
+const UUID='b7e4c1f2-3a9d-4e68-9c05-1d2f8a6e7b30';
+const SAMPLE={no:'ORD-0009',name:'สมชาย ใจดี',mode:'email',contactMasked:'so***@gmail.com',items:[['P-1001','ไข่ไก่ เบอร์ 2 (แผง 30 ฟอง)',2,95],['P-1003','ขนมปังแซนด์วิช แผ่นหนา',1,39]]};
+const SAMPLE_SHORT=[{name:'นมสดพาสเจอร์ไรส์ 1 ลิตร',want:12,have:8,expired:6}];
+
+/* ---------- ชิ้นส่วนที่ใช้ซ้ำ ---------- */
+const badge = (cls,t)=>`<span class="inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${cls}">${t}</span>`;
+const B = {
+  near: badge('bg-amber-100 text-amber-800 ring-1 ring-amber-300','ใกล้หมดอายุ'),
+  out:  badge('bg-stone-200 text-stone-700','หมด'),
+  expired: badge('bg-rose-100 text-rose-800 ring-1 ring-rose-300','หมดอายุ · ขายไม่ได้'),
+  ok: badge('bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200','ปกติ'),
+  on: badge('bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200','เปิดขาย'),
+  off: badge('bg-stone-200 text-stone-600','ปิดการขาย'),
+};
+const btn = {
+  primary:'inline-flex items-center justify-center rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-medium px-4 py-2 disabled:bg-stone-300 disabled:text-stone-500 disabled:cursor-not-allowed',
+  ghost:'inline-flex items-center justify-center rounded-lg border border-stone-300 bg-white hover:bg-stone-50 text-stone-800 text-sm font-medium px-3 py-1.5 disabled:opacity-50',
+  link:'text-sm font-medium text-emerald-700 hover:text-emerald-900 underline underline-offset-2',
+  danger:'text-sm font-medium text-rose-700 hover:text-rose-900',
+};
+const inputCls = 'w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm placeholder:text-stone-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none';
+const TRASH='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4" aria-hidden="true"><path d="M3.5 5.5h13M8 5.5V4a1 1 0 011-1h2a1 1 0 011 1v1.5M5.5 5.5l.7 10a1.5 1.5 0 001.5 1.4h4.6a1.5 1.5 0 001.5-1.4l.7-10M8.5 9v5M11.5 9v5"/></svg>';
+const delBtn=(code,label)=>`<button data-del="${code}" class="inline-flex items-center gap-1.5 min-h-[40px] px-3 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 text-sm font-medium">${TRASH}${label}</button>`;
+function rollInfo(key,val){
+  const st=S.rolls[key]||(S.rolls[key]={shown:val,from:null,to:null,t0:0}),now=Date.now();
+  if(st.shown!==val){st.from=st.shown;st.to=val;st.t0=now;st.shown=val;}
+  return st.from!==null&&now-st.t0<280?{from:st.from,delay:-(now-st.t0)}:null;
+}
+const rollHtml=(i,val)=>{if(!i)return `<span class="roll roll-static"><span>${val}</span></span>`;const f=i.from?String(i.from):'';
+  return `<span class="roll" style="--w0:${Math.max(1,f.length)}ch;--w1:${String(val).length}ch;animation-delay:${i.delay}ms"><span class="roll-old" aria-hidden="true" style="animation-delay:${i.delay}ms">${f}</span><span class="roll-new" style="animation-delay:${i.delay}ms">${val}</span></span>`;};
+function flyChip(numEl,n,before,code){
+  if(REDUCED()||!numEl)return;
+  const vis=e=>e.offsetParent!==null;
+  const tgt=[...document.querySelectorAll('.cart-badge')].find(vis)||[...document.querySelectorAll('#appNav [data-go="cart"]')].find(vis);
+  if(!tgt)return;
+  const rect=numEl.getBoundingClientRect(),r=tgt.getBoundingClientRect(),fs=parseFloat(getComputedStyle(numEl).fontSize)||14;
+  if(!S.holdBadge){S.badgeVal=before;S.holdBadge=true;}
+  S.chips++;S.pend[code]=(S.pend[code]||0)+n;
+  const c=document.createElement('div');c.className='chip';c.setAttribute('aria-hidden','true');
+  c.style.cssText=`--x0:${rect.left+rect.width/2}px;--y0:${rect.top+rect.height/2}px;--x1:${r.left+r.width/2}px;--y1:${r.top+r.height/2}px;--s0:${fs/12}`;
+  c.innerHTML=`<span class="chip-y"><span class="chip-s num"><span class="chip-bg"></span><span class="chip-n">${n}</span><span class="chip-p">+${n}</span></span></span>`;
+  document.body.appendChild(c);
+  setTimeout(()=>{c.remove();S.chips--;S.pend[code]-=n;S.badgeVal+=n;if(S.chips===0){S.holdBadge=false;S.badgeVal=cartCount();S.pend={};}render();},460);
+}
+const RV_ON=('IntersectionObserver' in window)&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+if(RV_ON)document.documentElement.classList.add('rv-on');
+let RV_IO=null;
+function setupReveal(mode){
+  if(RV_IO){RV_IO.disconnect();RV_IO=null;}
+  if(!RV_ON)return;
+  const cards=[...document.querySelectorAll('#view .rv')].filter(c=>!c.classList.contains('in'));
+  if(!cards.length)return;
+  const edge=window.innerHeight-40;
+  const todo=[];
+  cards.forEach(c=>{
+    const r=c.getBoundingClientRect();
+    if(mode==='page'&&r.top<edge&&r.bottom>0){c.classList.add('in','now');S.revealed.add(c.dataset.code);} // อยู่ในจอตั้งแต่โหลด = โผล่ทันที ไม่มีจังหวะว่าง
+    else todo.push(c);
+  });
+  if(!todo.length)return;
+  RV_IO=new IntersectionObserver(entries=>{
+    const hit=entries.filter(e=>e.isIntersecting).sort((a,b)=>a.boundingClientRect.top-b.boundingClientRect.top||a.boundingClientRect.left-b.boundingClientRect.left);
+    hit.forEach((e,i)=>{ // stagger นับเฉพาะการ์ดที่เข้าจอพร้อมกันในรอบนี้
+      e.target.style.setProperty('--rd',Math.min(i*35,280)+'ms');
+      e.target.classList.add('in');S.revealed.add(e.target.dataset.code);RV_IO.unobserve(e.target);
+    });
+  },{threshold:.15,rootMargin:'0px 0px -40px 0px'});
+  todo.forEach(c=>RV_IO.observe(c));
+}
+const REDUCED=()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const fresh=k=>{S.now.add(k);return !S.seen.has(k);};
+const bump=k=>S.bump===k?'num-bump':'';
+const cartCount = () => DB.cart.reduce((s,i)=>s+i.qty,0);
+
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove('show'),2600);}
+
+function toastUndo(msg){const t=document.getElementById('toast');t.innerHTML=`<span>${esc(msg)}</span> <span aria-hidden="true">·</span> <button data-undo class="font-semibold underline underline-offset-2 text-emerald-300 min-h-[40px] px-1">เลิกทำ</button>`;t.classList.add('show');clearTimeout(toast.h);toast.h=setTimeout(()=>{t.classList.remove('show');S.undo=null;},5000);}
+/* ---------- NAV ---------- */
+function renderNav(){
+  const el=document.getElementById('appNav');
+  if(S.page==='login'){el.innerHTML=`<div class="max-w-6xl mx-auto px-4 h-14 flex items-center"><span class="font-semibold text-emerald-800">Shop Cart</span></div>`;return;}
+  const bval=S.holdBadge?S.badgeVal:cartCount(), binfo=rollInfo('badge',bval);
+  const badgeHtml=bval?` <span class="cart-badge ml-1 inline-block rounded-full bg-emerald-700 text-white text-xs px-1.5 py-0.5 num ${binfo?'badge-pop':''}" ${binfo?`style="animation-delay:${binfo.delay}ms"`:''}>${rollHtml(binfo,bval)}</span>`:'';
+  const shopLinks=[['shop','ร้านค้า'],['cart','ตะกร้า'+badgeHtml],...(S.role!=='guest'?[['orders','คำสั่งซื้อของฉัน']]:[])];
+  const groups=[{label:S.role==='staff'?'ซื้อของ':'',links:shopLinks,admin:false}];
+  if(S.role==='staff') groups.push({label:'จัดการร้าน',links:[['products','สินค้า'],['import','นำเข้าสต็อก']],admin:true});
+  const gLinks=g=>g.links.map(([id,l])=>navLink(id,l,g.admin)).join('');
+  const deskGroup=(g,i)=>`${i?'<span class="mx-2 h-6 w-px bg-stone-200" aria-hidden="true"></span>':''}${g.label?`<span class="text-[11px] font-medium text-stone-400 mr-1 whitespace-nowrap">${g.label}</span>`:''}${gLinks(g)}`;
+  const mobGroup=g=>`<div class="flex items-center gap-1">${g.label?`<span class="w-16 shrink-0 text-[11px] font-medium text-stone-400">${g.label}</span>`:''}<div class="flex gap-1 overflow-x-auto">${gLinks(g)}</div></div>`;
+  el.innerHTML=`
+  <div class="max-w-6xl mx-auto px-4">
+    <div class="h-14 flex items-center gap-4">
+      <span class="font-semibold text-emerald-800 shrink-0">Shop Cart</span>
+      <nav class="hidden lg:flex items-center gap-1 flex-1" aria-label="เมนูหลัก">${groups.map(deskGroup).join('')}</nav>
+      <div class="ml-auto flex items-center gap-3 min-w-0">
+        <div class="text-right leading-tight min-w-0">
+          <div class="text-sm ${S.role==='guest'?'text-stone-500':'text-stone-800'} truncate max-w-[9.5rem] sm:max-w-none">${EMAIL[S.role]}</div>
+          <div class="text-xs text-stone-500">${ROLE_TH[S.role]}</div>
+        </div>
+        ${S.role==='guest'?`<button data-go="login" class="${btn.primary} shrink-0">เข้าสู่ระบบ</button>`:`<button data-go="login" class="${btn.ghost} shrink-0">ออกจากระบบ</button>`}
+      </div>
+    </div>
+    <nav class="lg:hidden pb-2 space-y-1" aria-label="เมนูหลัก">${groups.map(mobGroup).join('')}</nav>
+  </div>`;
+}
+const navLink=(id,l,admin)=>`<button data-go="${id}" class="whitespace-nowrap rounded-lg px-3 min-h-[36px] text-sm font-medium ${S.page===id?(admin?'bg-stone-800 text-white':'bg-emerald-50 text-emerald-800'):'text-stone-600 hover:bg-stone-100'}">${l}</button>`;
+
+/* ---------- PAGES ---------- */
+function pageLogin(){
+  return `
+  <div class="max-w-md mx-auto pt-4 sm:pt-10">
+    <h1 class="text-2xl font-semibold">เข้าสู่ระบบ</h1>
+    <p class="text-sm text-stone-600 mt-1">ใช้อีเมลและรหัสผ่านที่ได้รับจากร้าน</p>
+    <form id="loginForm" class="mt-6 bg-white border border-stone-200 rounded-xl p-5 space-y-4">
+      <label class="block"><span class="text-sm font-medium">อีเมล</span>
+        <input id="lEmail" type="email" class="${inputCls} mt-1" placeholder="name@example.com" autocomplete="username"></label>
+      <label class="block"><span class="text-sm font-medium">รหัสผ่าน</span>
+        <input id="lPass" type="password" class="${inputCls} mt-1" autocomplete="current-password"></label>
+      <button class="${btn.primary} w-full py-2.5">เข้าสู่ระบบ</button>
+    </form>
+    <div class="mt-4 rounded-xl border border-dashed border-amber-400 bg-amber-50 p-4 text-sm">
+      <div class="font-medium text-amber-900">บัญชีทดสอบ <span class="font-normal text-amber-800">(เฉพาะช่วงพัฒนา)</span></div>
+      <ul class="mt-2 space-y-2">
+        <li class="flex items-center justify-between gap-3 flex-wrap"><span><span class="text-stone-600">ลูกค้า</span> <code class="num">customer@shop.test</code> / <code>Test1234</code></span>
+          <button data-fill="customer" class="${btn.link}">ใช้บัญชีนี้</button></li>
+        <li class="flex items-center justify-between gap-3 flex-wrap"><span><span class="text-stone-600">เจ้าหน้าที่</span> <code class="num">staff@shop.test</code> / <code>Test1234</code></span>
+          <button data-fill="staff" class="${btn.link}">ใช้บัญชีนี้</button></li>
+      </ul>
+    </div>
+  </div>`;
+}
+
+function pageShop(){
+  const list = DB.products.filter(p=>p.active)
+    .filter(p=>S.type==='ทั้งหมด'||p.type===S.type)
+    .filter(p=>!S.q||(p.name+p.code).toLowerCase().includes(S.q.toLowerCase()));
+  const chip=(t)=>`<button data-type="${t}" class="whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm border ${S.type===t?'bg-emerald-700 border-emerald-700 text-white':'bg-white border-stone-300 text-stone-700 hover:bg-stone-100'}">${t}</button>`;
+  return `
+  <div><h1 class="text-2xl font-semibold">ร้านค้า</h1><p class="text-sm text-stone-600">ระบบหยิบล็อตที่หมดอายุก่อนให้อัตโนมัติ ล็อตที่หมดอายุแล้วจะไม่ถูกขาย</p></div>
+  <div class="mt-4 space-y-3">
+    <input id="q" value="${esc(S.q)}" class="${inputCls} sm:max-w-sm" placeholder="ค้นหาชื่อหรือรหัสสินค้า" aria-label="ค้นหา">
+    <div class="flex gap-2 overflow-x-auto pb-1">${['ทั้งหมด',...TYPES].map(chip).join('')}</div>
+  </div>
+  <div class="stagger mt-4 grid gap-3 sm:gap-4 grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    ${list.map(card).join('')||`<div class="col-span-full text-center text-stone-500 py-16 bg-white border border-stone-200 rounded-xl">ไม่พบสินค้าที่ตรงกับเงื่อนไข<br><button data-clear class="${btn.link} mt-2">ล้างตัวกรอง</button></div>`}
+  </div>`;
+}
+function card(p,idx=0){
+  const n=sellable(p), ne=nearestExp(p), out=n===0, near=!out&&daysTo(ne)<=NEAR_DAYS;
+  const inCart=(DB.cart.find(i=>i.code===p.code)||{}).qty||0;
+  const shownIn=inCart-(S.pend[p.code]||0), ri=rollInfo('card-'+p.code,shownIn);
+  const sr=S.stepReset&&S.stepReset.code===p.code&&Date.now()-S.stepReset.ts<350?S.stepReset:null;
+  const cap=Math.max(0,n-inCart), pick=Math.min(Math.max(1,S.pick[p.code]||1),Math.max(cap,1));
+  return `
+  <article data-code="${p.code}" class="rv ${S.revealed.has(p.code)?'in now':''} bg-white border border-stone-200 rounded-xl p-4 flex flex-col ${out?'opacity-80':''}">
+    <div class="flex items-start justify-between gap-2 min-h-[1.5rem]">
+      <span class="text-xs text-stone-500 num pt-0.5">${p.code} · ${p.type}</span>
+      ${out?B.out:near?B.near:''}
+    </div>
+    <h2 class="mt-1.5 font-medium leading-snug min-h-[2.75rem]">${esc(p.name)}</h2>
+    <div class="mt-2 text-xl font-semibold num">${baht(p.price)}</div>
+    <dl class="mt-2 text-sm grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+      <dt class="text-stone-500">คงเหลือ</dt><dd class="num">${out?'<span class="text-stone-500">สินค้าหมด</span>':`<b>${n.toLocaleString('th-TH')}</b> <span class="text-stone-500">ชิ้น</span>`}</dd>
+      <dt class="text-stone-500">หมดอายุ</dt><dd class="num ${near?'text-amber-800 font-medium':''}">${out?'—':fmtDate(ne)+(near?` <span class="font-normal">(อีก ${daysTo(ne)} วัน)</span>`:'')}</dd>
+    </dl>
+    <div class="mt-auto pt-4">${out?`<div class="min-h-[44px]"></div><button disabled class="${btn.primary} w-full min-h-[44px] mt-2">สินค้าหมด</button><div class="mt-2 min-h-[2.5rem]"></div>`:`
+      <div class="flex items-center justify-between rounded-lg border ${cap<=0?'border-stone-200 bg-stone-50':'border-stone-300 bg-white'} min-h-[44px]">
+        <button data-pdec="${p.code}" ${pick<=1||cap<=0?'disabled':''} class="w-12 min-h-[44px] text-xl hover:bg-stone-100 rounded-l-lg disabled:text-stone-300 disabled:hover:bg-transparent disabled:cursor-not-allowed" aria-label="ลดจำนวน">−</button>
+        <span data-stepnum="${p.code}" ${sr?`style="animation-delay:-${Date.now()-sr.ts}ms"`:''} class="num font-semibold ${cap<=0?'text-stone-400':''} ${bump('p-'+p.code)} ${sr?'step-reset':''}">${cap<=0?1:pick}</span>
+        <button data-pinc="${p.code}" ${pick>=cap?'disabled':''} class="w-12 min-h-[44px] text-xl hover:bg-stone-100 rounded-r-lg disabled:text-stone-300 disabled:hover:bg-transparent disabled:cursor-not-allowed" aria-label="เพิ่มจำนวน">+</button></div>
+      <button data-add="${p.code}" ${cap<=0?'disabled':''} class="${btn.primary} w-full min-h-[44px] mt-2">เพิ่มลงตะกร้า</button>
+      <div class="mt-2 min-h-[2.5rem] text-xs leading-snug" aria-live="polite">
+        <div class="text-stone-600">${shownIn>0?`ในตะกร้า ${rollHtml(ri,shownIn)} ชิ้น`:'&nbsp;'}</div>
+        ${S.flash&&S.flash.code===p.code?`<div class="text-emerald-800 font-medium flash-anim" style="animation-delay:-${Date.now()-S.flash.ts}ms">✓ เพิ่ม ${S.flash.n} ชิ้นแล้ว</div>`
+          :cap<=0?`<div class="text-amber-800 font-medium">ครบจำนวนที่มีแล้ว</div>`
+          :pick>=cap?`<div class="text-amber-800 font-medium">เพิ่มได้อีกสูงสุด ${cap} ชิ้น</div>`:''}
+      </div>`}</div>
+  </article>`;
+}
+
+function validateCart(){
+  const errs=[];
+  DB.cart.forEach(i=>{const p=byCode(i.code),s=sellable(p);if(i.qty>s)errs.push({code:i.code,have:s,want:i.qty,expired:expiredQty(p)});});
+  return errs;
+}
+function pageCart(){
+  if(!DB.cart.length) return `<h1 class="text-2xl font-semibold">ตะกร้า</h1>
+    <div class="mt-4 bg-white border border-stone-200 rounded-xl p-10 text-center text-stone-600">ตะกร้ายังว่างอยู่<br><button data-go="shop" class="${btn.primary} mt-4">ไปเลือกสินค้า</button></div>`;
+  const total=DB.cart.reduce((s,i)=>s+i.qty*byCode(i.code).price,0);
+  const tb=S.lastTotal!==undefined&&S.lastTotal!==total?'num-bump':'';S.lastTotal=total;
+  const errs=S.cartErr||[];
+  const errOf=c=>errs.find(e=>e.code===c);
+  const banner = errs.length ? `
+  <div class="xp ${fresh('e409-'+S.tick)?'expand-in':''}"><div class="xp-in"><div role="alert" class="mt-4 rounded-xl border border-rose-300 bg-rose-50 p-4">
+    <div class="font-semibold text-rose-900">สั่งซื้อยังไม่สำเร็จ: ${errs.length} รายการมีสินค้าไม่พอ</div>
+    <p class="text-sm text-rose-900/80 mt-1">ยังไม่มีการตัดสต็อก และตะกร้าของคุณยังอยู่ครบ ปรับจำนวนหรือลบรายการที่ติดสีแดงด้านล่าง แล้วกดสั่งซื้ออีกครั้ง</p>
+    <ul class="mt-3 space-y-1 text-sm text-rose-950">
+      ${errs.map(e=>{const p=byCode(e.code);return `<li>• <b>${esc(p.name)}</b> สั่ง ${e.want} ขายได้ ${e.have} <b>(ขาด ${e.want-e.have})</b></li>`}).join('')}
+    </ul>
+    <button data-fixall class="${btn.ghost} mt-3 border-rose-300">ปรับทุกรายการให้เท่าที่ขายได้</button>
+  </div></div></div>`:'';
+  const rows=DB.cart.map(i=>{
+    const p=byCode(i.code), e=errOf(i.code), s=sellable(p);
+    return `
+    <li data-row="${p.code}" class="xp ${S.expandCode===p.code?'expand-in':''}"><div class="xp-in"><div class="p-4 ${e?'bg-rose-50/60 ring-1 ring-inset ring-rose-300':''}">
+      <div class="flex gap-3 justify-between items-start">
+        <div class="min-w-0 flex-1">
+          <div class="text-xs text-stone-500 num">${p.code}</div>
+          <div class="font-medium">${esc(p.name)}</div>
+          <div class="text-sm text-stone-600 num">${baht(p.price)} / ชิ้น</div>
+        </div>
+        <div class="font-semibold num text-right ${bump('c-'+p.code)}">${baht(i.qty*p.price)}</div>
+      </div>
+      <div class="mt-3 flex items-center justify-between gap-3">
+        <div class="inline-flex items-center rounded-lg border ${e?'border-rose-400':'border-stone-300'} bg-white">
+          <button data-dec="${p.code}" ${i.qty<=1?'disabled':''} class="w-10 h-10 text-lg hover:bg-stone-100 rounded-l-lg disabled:text-stone-300 disabled:hover:bg-transparent disabled:cursor-not-allowed" aria-label="ลด">−</button>
+          <span class="w-12 text-center num text-sm font-medium ${bump('c-'+p.code)}">${i.qty}</span>
+          <button data-inc="${p.code}" class="w-10 h-10 text-lg hover:bg-stone-100 rounded-r-lg" aria-label="เพิ่ม">+</button>
+        </div>
+        ${delBtn(p.code,'ลบ')}
+      </div>
+      ${e?`<div class="mt-3 rounded-lg bg-white border border-rose-300 p-3 text-sm">
+          <div class="text-rose-900"><b>${s===0?'สินค้าหมดแล้ว':`ขายได้เพียง ${e.have} ชิ้น`}</b> · คุณสั่ง ${e.want}${s===0?'':` ขาดอีก ${e.want-e.have}`}</div>
+          ${e.expired?`<div class="text-stone-600 mt-0.5">ไม่นับล็อตที่หมดอายุแล้ว ${e.expired} ชิ้น</div>`:''}
+          <div class="mt-2 flex gap-3 items-center flex-wrap">${s>0?`<button data-fit="${p.code}" class="${btn.link}">ปรับเป็น ${s} ชิ้น</button>`:''}${delBtn(p.code,'ลบออกจากตะกร้า')}</div>
+        </div>`
+      :''}
+    </div></div></li>`}).join('');
+  return `
+  <h1 class="text-2xl font-semibold">ตะกร้า</h1>
+  ${banner}
+  <div class="mt-4 grid gap-4 lg:grid-cols-[1fr_20rem] items-start">
+    <div><ul class="bg-white border border-stone-200 rounded-xl divide-y divide-stone-200 overflow-hidden">${rows}</ul></div>
+    <aside class="bg-white border border-stone-200 rounded-xl p-4 lg:sticky lg:top-24">
+      <div class="text-sm text-stone-600">${DB.cart.length} รายการ · ${cartCount()} ชิ้น</div>
+      <div class="mt-2 flex justify-between items-baseline"><span class="font-medium">ยอดรวม</span><span class="text-2xl font-semibold num ${tb}">${baht(total)}</span></div>
+      ${S.role==='guest'?guestForm(errs):`<button data-order class="${btn.primary} w-full mt-4 py-2.5" ${errs.length?'disabled':''}>สั่งซื้อ</button>`}
+      ${errs.length?`<p class="text-xs text-rose-800 mt-2">แก้ ${errs.length} รายการที่ติดสีแดงก่อน จึงจะสั่งซื้อได้</p>`:S.role==='guest'?'':'<p class="text-xs text-stone-500 mt-2">ระบบจะตรวจสต็อกอีกครั้งตอนกดสั่งซื้อ</p>'}
+    </aside>
+  </div>`;
+}
+
+function pageOrders(){
+  const stCls={'สำเร็จ':'bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200','ยกเลิก':'bg-stone-200 text-stone-700'};
+  return `<h1 class="text-2xl font-semibold">คำสั่งซื้อของฉัน</h1>
+  <ul class="mt-4 space-y-3">${DB.orders.map(o=>{
+    const tot=o.items.reduce((s,[,q,p])=>s+q*p,0), open=S.openOrder===o.no;
+    return `<li class="bg-white border border-stone-200 rounded-xl">
+      <button data-order-toggle="${o.no}" class="w-full text-left p-4 flex items-center gap-3 flex-wrap">
+        <div class="flex-1 basis-40"><div class="font-medium num">${o.no}</div><div class="text-sm text-stone-600">${fmtDate(o.date)} · ${o.items.length} รายการ</div></div>
+        ${badge(stCls[o.status],o.status)}
+        <div class="font-semibold num w-24 text-right">${baht(tot)}</div>
+        <span class="text-stone-400 text-sm">${open?'▲':'▼'}</span>
+      </button>
+      ${open?`<div class="border-t border-stone-200 px-4 py-3 overflow-x-auto"><table class="w-full min-w-[380px] text-sm">
+        <thead class="text-stone-500 text-left"><tr><th class="font-medium py-1">สินค้า</th><th class="font-medium text-right">ราคา</th><th class="font-medium text-right">จำนวน</th><th class="font-medium text-right">รวม</th></tr></thead>
+        <tbody>${o.items.map(([n,q,p])=>`<tr class="border-t border-stone-100"><td class="py-1.5">${esc(n)}</td><td class="text-right num">${baht(p)}</td><td class="text-right num">${q}</td><td class="text-right num">${baht(q*p)}</td></tr>`).join('')}</tbody></table></div>`:''}
+    </li>`}).join('')}</ul>`;
+}
+
+function expCell(p){
+  const ne=nearestExp(p);
+  if(!ne) return p.lots.some(l=>l.remain>0)?`<span class="text-rose-700">มีแต่ล็อตหมดอายุ</span>`:'—';
+  const near=daysTo(ne)<=NEAR_DAYS;
+  return `<span class="num ${near?'text-amber-800 font-medium':''}">${fmtDate(ne)}</span>${near?' '+B.near:''}`;
+}
+function pageProducts(){
+  return `
+  <div class="flex items-end justify-between gap-3 flex-wrap">
+    <div><h1 class="text-2xl font-semibold">สินค้า</h1><p class="text-sm text-stone-600">คงเหลือ = เฉพาะล็อตที่ยังไม่หมดอายุ (ขายได้จริง)</p></div>
+    <button data-edit="" class="${btn.primary}">+ เพิ่มสินค้า</button>
+  </div>
+  <div class="mt-4 bg-white border border-stone-200 rounded-xl overflow-x-auto">
+    <table class="w-full min-w-[860px] text-sm">
+      <thead class="bg-stone-50 text-stone-600 text-left"><tr>
+        <th class="font-medium px-4 py-2.5">รหัส</th><th class="font-medium px-2">ชื่อ</th><th class="font-medium px-2">Type</th>
+        <th class="font-medium px-2 text-right">ราคา</th><th class="font-medium px-2 text-right">คงเหลือ (ขายได้)</th><th class="font-medium px-2">exp ใกล้สุด</th><th class="font-medium px-2">สถานะ</th><th class="px-4"></th></tr></thead>
+      <tbody class="divide-y divide-stone-100">${DB.products.map(p=>{
+        const n=sellable(p), ex=expiredQty(p);
+        return `<tr class="${p.active?'':'bg-stone-50 text-stone-500'}">
+          <td class="px-4 py-3 num whitespace-nowrap">${p.code}</td>
+          <td class="px-2"><button data-lots="${p.code}" class="text-left font-medium hover:underline underline-offset-2">${esc(p.name)}</button></td>
+          <td class="px-2 whitespace-nowrap">${p.type}</td>
+          <td class="px-2 text-right num">${baht(p.price)}</td>
+          <td class="px-2 text-right num whitespace-nowrap">${n===0?B.out:`<b>${n.toLocaleString('th-TH')}</b>`}${ex?`<div class="text-xs text-rose-700">+${ex} หมดอายุ</div>`:''}</td>
+          <td class="px-2 whitespace-nowrap">${expCell(p)}</td>
+          <td class="px-2">${p.active?B.on:B.off}</td>
+          <td class="px-4 text-right whitespace-nowrap space-x-3">
+            <button data-lots="${p.code}" class="${btn.link}">ดูล็อต</button>
+            <button data-edit="${p.code}" class="${btn.link}">แก้ไข</button>
+            <button data-toggle="${p.code}" class="${p.active?btn.danger:btn.link}">${p.active?'ปิดการขาย':'เปิดการขาย'}</button></td>
+        </tr>`}).join('')}</tbody>
+    </table>
+  </div>`;
+}
+
+function drawerLots(code){
+  const p=byCode(code), order=sellableLots(p).map(l=>l.id), f=fresh('drawer-'+code);
+  return `
+  <div class="fixed inset-0 z-40 bg-stone-900/40 ${f?'fade-in':''}" data-close-drawer></div>
+  <aside class="fixed z-50 inset-y-0 right-0 w-full sm:w-[34rem] bg-white shadow-xl flex flex-col ${f?'drawer-in':''}" role="dialog" aria-label="ล็อตสินค้า">
+    <div class="p-4 border-b border-stone-200 flex items-start gap-3">
+      <div class="flex-1 min-w-0"><div class="text-xs text-stone-500 num">${p.code} · ${p.type}</div><h2 class="font-semibold text-lg leading-snug">${esc(p.name)}</h2>
+        <p class="text-sm text-stone-600 mt-1">ขายได้ <b class="num">${sellable(p)}</b> ชิ้น${expiredQty(p)?` · หมดอายุ <b class="num text-rose-700">${expiredQty(p)}</b> ชิ้น`:''}</p></div>
+      <button data-close-drawer class="${btn.ghost}" aria-label="ปิด">ปิด</button>
+    </div>
+    <div class="p-4 overflow-y-auto flex-1">
+      <p class="text-xs text-stone-500 mb-2">เรียงตามลำดับ exp (FEFO: หมดอายุก่อนตัดขายก่อน)</p>
+      <div class="overflow-x-auto border border-stone-200 rounded-lg">
+      <table class="w-full min-w-[480px] text-sm">
+        <thead class="bg-stone-50 text-stone-600 text-left"><tr><th class="font-medium px-3 py-2">ล็อต</th><th class="font-medium px-2">รับเข้า</th><th class="font-medium px-2 text-right">คงเหลือ</th><th class="font-medium px-2">exp</th><th class="font-medium px-2">สถานะ</th></tr></thead>
+        <tbody class="divide-y divide-stone-100">${[...p.lots].sort((a,b)=>a.exp.localeCompare(b.exp)).map(l=>{
+          const st=lotState(l), empty=l.remain===0, rank=order.indexOf(l.id);
+          return `<tr class="${st==='expired'?'bg-rose-50/50':''}">
+            <td class="px-3 py-2.5 num whitespace-nowrap">${l.id}${rank===0?`<div class="text-xs text-emerald-700">ตัดขายก่อน</div>`:''}</td>
+            <td class="px-2 num whitespace-nowrap">${fmtDate(l.recv)}<div class="text-xs text-stone-500">รับ ${l.qty} ชิ้น</div></td>
+            <td class="px-2 text-right num font-medium">${l.remain}</td>
+            <td class="px-2 num whitespace-nowrap">${fmtDate(l.exp)}</td>
+            <td class="px-2 whitespace-nowrap">${empty?badge('bg-stone-200 text-stone-700','ขายหมดแล้ว'):st==='expired'?B.expired:st==='near'?B.near:B.ok}</td></tr>`}).join('')}</tbody>
+      </table></div>
+      <button data-goimport="${p.code}" class="${btn.primary} mt-4">นำเข้าล็อตใหม่</button>
+    </div>
+  </aside>`;
+}
+function modalEdit(code){
+  const p=code?byCode(code):{code:'',name:'',type:TYPES[0],price:''}, f=fresh('modal-'+code);
+  return `
+  <div class="fixed inset-0 z-40 bg-stone-900/40 ${f?'fade-in':''}" data-close-modal></div>
+  <div class="${f?'modal-in':''} fixed z-50 inset-x-4 top-8 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:w-[28rem] max-h-[90vh] overflow-y-auto bg-white rounded-xl shadow-xl p-5" role="dialog">
+    <h2 class="font-semibold text-lg">${code?'แก้ไขสินค้า':'เพิ่มสินค้า'}</h2>
+    <form id="prodForm" class="mt-4 space-y-3">
+      <label class="block text-sm font-medium">รหัสสินค้า (Code)<input class="${inputCls} mt-1" value="${esc(p.code)}" ${code?'disabled':''} placeholder="เช่น P-1005"></label>
+      <label class="block text-sm font-medium">ชื่อสินค้า<input class="${inputCls} mt-1" value="${esc(p.name)}"></label>
+      <div class="grid grid-cols-2 gap-3">
+        <label class="block text-sm font-medium">Type<select class="${inputCls} mt-1">${TYPES.map(t=>`<option ${t===p.type?'selected':''}>${t}</option>`).join('')}</select></label>
+        <label class="block text-sm font-medium">ราคา (บาท)<input type="number" class="${inputCls} mt-1" value="${p.price}"></label>
+      </div>
+      <p class="text-xs text-stone-500">จำนวนคงเหลือและ exp ไม่กรอกที่นี่ — ได้จากการนำเข้าสต็อกเป็นล็อต</p>
+      <div class="flex justify-end gap-2 pt-2"><button type="button" data-close-modal class="${btn.ghost}">ยกเลิก</button><button class="${btn.primary}">บันทึก</button></div>
+    </form>
+  </div>`;
+}
+
+function pageImportSingle(pref){
+  return `
+  <div class="mt-4 grid gap-4 lg:grid-cols-[22rem_1fr] items-start">
+    <form id="impForm" class="bg-white border border-stone-200 rounded-xl p-4 space-y-3">
+      <label class="block text-sm font-medium">รหัสสินค้า
+        <input id="iCode" list="codes" class="${inputCls} mt-1" placeholder="พิมพ์รหัส เช่น P-1001" value="${pref||''}">
+        <datalist id="codes">${DB.products.map(p=>`<option value="${p.code}">${esc(p.name)}</option>`).join('')}</datalist></label>
+      <div id="iHint" class="text-sm min-h-[1.25rem]"></div>
+      <label class="block text-sm font-medium">จำนวนที่รับเข้า<input id="iQty" type="number" min="1" class="${inputCls} mt-1" placeholder="0"></label>
+      <label class="block text-sm font-medium">วันหมดอายุ (exp)<input id="iExp" type="date" class="${inputCls} mt-1"></label>
+      <div id="iErr" class="text-sm text-rose-700 min-h-[1.25rem]" role="alert"></div>
+      <button class="${btn.primary} w-full">บันทึกการนำเข้า</button>
+    </form>
+    <div class="bg-white border border-stone-200 rounded-xl overflow-hidden">
+      <div class="px-4 py-3 border-b border-stone-200 font-medium">ประวัติการนำเข้า</div>
+      <div class="overflow-x-auto"><table class="w-full min-w-[640px] text-sm">
+        <thead class="bg-stone-50 text-stone-600 text-left"><tr><th class="font-medium px-4 py-2">เวลา</th><th class="font-medium px-2">สินค้า</th><th class="font-medium px-2 text-right">จำนวน</th><th class="font-medium px-2">exp</th><th class="font-medium px-4">ผู้บันทึก</th></tr></thead>
+        <tbody class="divide-y divide-stone-100">${DB.imports.map(r=>`<tr>
+          <td class="px-4 py-2.5 num whitespace-nowrap">${r.at}</td>
+          <td class="px-2"><span class="num text-stone-500">${r.code}</span> ${esc(r.name)}</td>
+          <td class="px-2 text-right num">+${r.qty}</td><td class="px-2 num whitespace-nowrap">${fmtDate(r.exp)}</td>
+          <td class="px-4 text-stone-600 whitespace-nowrap">${r.by}</td></tr>`).join('')}</tbody></table></div>
+    </div>
+  </div>`;
+}
+
+const fieldErr=(k)=>S.g.errs[k]?`<div class="xp ${fresh('err-'+k+'-'+S.tick)?'expand-in':''}"><div class="xp-in"><p id="err-${k}" class="text-xs text-rose-700 mt-1">${S.g.errs[k]}</p></div></div>`:'';
+const fieldCls=(k)=>S.g.errs[k]?'border-rose-400 focus:border-rose-500 focus:ring-rose-500 '+(fresh('err-'+k+'-'+S.tick)?'shake':''):'';
+function guestForm(errs){
+  const g=S.g, em=g.mode==='email';
+  const seg=(m,l)=>`<button type="button" data-gmode="${m}" aria-pressed="${g.mode===m}" class="flex-1 min-h-[40px] text-sm font-medium rounded-md ${g.mode===m?'bg-white text-emerald-800 shadow-sm ring-1 ring-stone-200':'text-stone-600 hover:text-stone-900'}">${l}</button>`;
+  return `
+  <div class="mt-4 pt-4 border-t border-stone-200">
+    <div class="text-sm font-semibold">สั่งซื้อโดยไม่ต้องเข้าสู่ระบบ</div>
+    <p class="text-xs text-stone-500 mt-0.5">เราจะส่งลิงก์ยืนยันให้ สต็อกจะถูกตัดเมื่อคุณกดลิงก์ยืนยัน</p>
+    <label class="block mt-3 text-sm font-medium">ชื่อผู้สั่ง
+      <input id="gName" value="${esc(g.name)}" class="${inputCls} mt-1 ${fieldCls('name')}" placeholder="เช่น สมชาย ใจดี" autocomplete="name" ${g.errs.name?'aria-invalid="true" aria-describedby="err-name"':''}></label>${fieldErr('name')}
+    <div class="mt-3 text-sm font-medium" id="gModeLbl">รับลิงก์ยืนยันทาง</div>
+    <div class="mt-1 flex gap-1 rounded-lg bg-stone-100 p-1" role="group" aria-labelledby="gModeLbl">${seg('email','Email')}${seg('sms','SMS')}</div>
+    <label class="block mt-3 text-sm font-medium">${em?'อีเมล':'เบอร์โทรศัพท์'}
+      <input id="gContact" value="${esc(g.contact)}" type="${em?'email':'tel'}" inputmode="${em?'email':'numeric'}" class="${inputCls} mt-1 ${fieldCls('contact')}" placeholder="${em?'name@example.com':'08x-xxx-xxxx'}" autocomplete="${em?'email':'tel'}" ${g.errs.contact?'aria-invalid="true" aria-describedby="err-contact"':''}></label>${fieldErr('contact')}
+    ${g.rate?`<div class="xp ${fresh('rate-'+S.tick)?'expand-in':''}"><div class="xp-in"><div role="alert" class="mt-3 rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm text-rose-900"><b>สั่งบ่อยเกินไป</b> ลองใหม่ในอีก ${g.rate} นาที<div class="text-xs text-rose-800/80 mt-0.5">ตะกร้าของคุณยังอยู่ครบ (429)</div></div></div></div>`:''}
+    <button data-gorder class="${btn.primary} w-full mt-4 py-2.5 min-h-[44px]" ${errs.length?'disabled':''}>สั่งซื้อและรับลิงก์ยืนยัน</button>
+    <p class="text-sm text-center mt-3 text-stone-600">มีบัญชีแล้ว? <button data-go="login" class="${btn.link} min-h-[40px]">เข้าสู่ระบบ</button></p>
+    <label class="mt-3 flex items-center gap-2 rounded-lg border border-dashed border-stone-300 px-3 py-2 text-xs text-stone-500"><input type="checkbox" id="sim429" ${S.sim429?'checked':''}> mockup: จำลองผลลัพธ์ 429 ตอนกดสั่งซื้อ</label>
+  </div>`;
+}
+const maskContact=(mode,v)=>{if(mode==='email'){const [u,d]=v.split('@');return u.slice(0,2)+'***@'+d;}const n=v.replace(/\D/g,'');return n.slice(0,2)+'x-xxx-'+n.slice(-4);};
+const itemsTotal=items=>items.reduce((t,[,,q,p])=>t+q*p,0);
+function itemsTable(items){return `<div class="overflow-x-auto"><table class="w-full min-w-[300px] text-sm">
+  <thead class="text-stone-500 text-left"><tr><th class="font-medium py-1">สินค้า</th><th class="font-medium text-right">จำนวน</th><th class="font-medium text-right">รวม</th></tr></thead>
+  <tbody>${items.map(([,n,q,p])=>`<tr class="border-t border-stone-100"><td class="py-1.5">${esc(n)}</td><td class="text-right num">${q}</td><td class="text-right num">${baht(q*p)}</td></tr>`).join('')}
+  <tr class="border-t border-stone-300"><td class="py-2 font-medium" colspan="2">ยอดรวม</td><td class="text-right font-semibold num">${baht(itemsTotal(items))}</td></tr></tbody></table></div>`;}
+
+function pageCheck(){
+  const o=S.pending||SAMPLE;
+  return `
+  <div class="max-w-lg mx-auto">
+    <div class="rounded-xl bg-white border border-stone-200 p-5 sm:p-6">
+      <div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center text-2xl" aria-hidden="true">✉</div>
+      <h1 class="text-2xl font-semibold mt-3">ตรวจสอบ ${o.mode==='email'?'email':'SMS'} ของคุณ</h1>
+      <p class="text-stone-700 mt-2">เราส่งลิงก์ยืนยันไปที่ <b class="num break-all">${o.contactMasked}</b> แล้ว กดลิงก์เพื่อยืนยันคำสั่งซื้อ</p>
+      <ul class="mt-4 space-y-2 text-sm">
+        <li class="flex gap-2"><span class="text-amber-700">●</span><span>ลิงก์หมดอายุใน <b>30 นาที</b> (ส่งเมื่อ 17:12 · หมดอายุ 17:42) และใช้ยืนยันได้ครั้งเดียว</span></li>
+        <li class="flex gap-2"><span class="text-stone-500">●</span><span>คำสั่งซื้อ <b class="num">${o.no}</b> อยู่ในสถานะ ${badge('bg-amber-100 text-amber-800 ring-1 ring-amber-300','รอยืนยัน')} ยังไม่มีการตัดสต็อกจนกว่าคุณจะกดลิงก์</span></li>
+      </ul>
+      <div class="mt-5 flex flex-wrap items-center gap-3">
+        <button data-resend id="resendBtn" class="${btn.ghost} min-h-[44px] px-4" ${S.cool>0?'disabled':''}>${S.cool>0?`ส่งอีกครั้งได้ใน ${S.cool} วินาที`:'ส่งลิงก์อีกครั้ง'}</button>
+        <button data-go="cart" class="${btn.link} min-h-[40px]">แก้ข้อมูลผู้สั่ง</button>
+      </div>
+      <p class="text-xs text-stone-500 mt-3">ไม่พบข้อความ? ตรวจโฟลเดอร์สแปม การส่งใหม่จะทำให้ลิงก์เดิมใช้ไม่ได้</p>
+    </div>
+    <details open class="mt-4 rounded-xl border border-dashed border-amber-400 bg-amber-50 p-4 text-sm">
+      <summary class="cursor-pointer font-medium text-amber-900 min-h-[32px]">ดูข้อความใน outbox (dev)</summary>
+      <div class="mt-2 rounded-lg bg-white border border-amber-200 p-3 text-stone-700">
+        <div class="text-xs text-stone-500">ถึง: <span class="num">${o.contactMasked}</span> · ส่ง 17:12</div>
+        <p class="mt-1">สวัสดี ${esc(o.name)} กดลิงก์เพื่อยืนยันคำสั่งซื้อ ${o.no} (หมดอายุใน 30 นาที ใช้ได้ครั้งเดียว)</p>
+        <p class="mt-1 num text-xs break-all text-emerald-800">/orders/confirm/${UUID}</p>
+      </div>
+      <button data-simlink class="${btn.primary} mt-3 min-h-[44px]">จำลองการกดลิงก์</button>
+    </details>
+  </div>`;
+}
+
+function shortages(items){
+  const out=[];items.forEach(([c,n,q])=>{const p=byCode(c),h=sellable(p);if(q>h)out.push({name:n,want:q,have:h,expired:expiredQty(p)});});
+  return out;
+}
+function pageConfirm(){
+  const o=S.pending||SAMPLE;
+  const tabs=[['ok','ยืนยันสำเร็จ'],['expired','ลิงก์หมดอายุ'],['done','ยืนยันไปแล้ว'],['short','stock ไม่พอ']];
+  const bar=`<div class="mb-5 rounded-xl border border-dashed border-stone-300 bg-white p-3">
+    <div class="text-xs text-stone-500 mb-2">mockup: สลับดูผลลัพธ์ของลิงก์ <span class="num">/orders/confirm/${UUID.slice(0,8)}…</span></div>
+    <div class="flex gap-1 overflow-x-auto" role="group">${tabs.map(([k,l])=>`<button data-cs="${k}" aria-pressed="${S.cstate===k}" class="whitespace-nowrap min-h-[40px] px-3 rounded-lg text-sm ${S.cstate===k?'bg-stone-900 text-white':'bg-stone-100 text-stone-700 hover:bg-stone-200'}">${l}</button>`).join('')}</div></div>`;
+  let body='';
+  const hdr=(icon,cls,title,sub)=>`<div class="w-12 h-12 rounded-full ${cls} flex items-center justify-center text-2xl font-semibold" aria-hidden="true">${icon}</div><h1 class="text-2xl font-semibold mt-3">${title}</h1><p class="text-stone-600 mt-1">${sub}</p>`;
+  if(S.cstate==='ok') body=`${hdr('✓','bg-emerald-50 text-emerald-700','ยืนยันคำสั่งซื้อเรียบร้อย',`ขอบคุณ ${esc(o.name)} เราตัดสต็อกและรับคำสั่งซื้อของคุณแล้ว`)}
+    <div class="mt-4 flex items-center gap-3 flex-wrap"><span class="num text-lg font-semibold">${o.no}</span>${badge('bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200','ยืนยันแล้ว')}</div>
+    <div class="mt-3 border-t border-stone-200 pt-3">${itemsTable(o.items)}</div>
+    <p class="text-xs text-stone-500 mt-3">เก็บลิงก์นี้ไว้ เปิดดูสถานะคำสั่งซื้อได้ตลอด แต่กดยืนยันซ้ำไม่ได้</p>
+    <button data-go="shop" class="${btn.primary} mt-4 min-h-[44px]">กลับไปเลือกสินค้า</button>`;
+  if(S.cstate==='expired') body=`${hdr('⏱','bg-amber-100 text-amber-800','ลิงก์ยืนยันหมดอายุแล้ว','ลิงก์ใช้ได้ 30 นาทีหลังส่ง คำสั่งซื้อนี้ยังไม่ถูกยืนยัน และไม่มีการตัดสต็อก')}
+    ${DB.cart.length?`<div class="mt-4 rounded-lg bg-stone-50 border border-stone-200 p-3 text-sm">ตะกร้าเดิมของคุณยังอยู่ <b>${DB.cart.length} รายการ · ${cartCount()} ชิ้น</b> สั่งใหม่แล้วเราจะส่งลิงก์ใหม่ให้</div>
+    <button data-go="cart" class="${btn.primary} mt-4 min-h-[44px]">สั่งซื้ออีกครั้งจากตะกร้าเดิม</button>`:`<div class="mt-4 rounded-lg bg-stone-50 border border-stone-200 p-3 text-sm">ตะกร้าเดิมไม่มีรายการแล้ว เลือกสินค้าใหม่เพื่อสั่งซื้ออีกครั้ง</div>
+    <button data-go="shop" class="${btn.primary} mt-4 min-h-[44px]">ไปเลือกสินค้า</button>`}`;
+  if(S.cstate==='done'){const steps=['รอยืนยัน','ยืนยันแล้ว','กำลังจัดเตรียม','เสร็จสิ้น'];
+    body=`${hdr('i','bg-sky-50 text-sky-800','คำสั่งซื้อนี้ยืนยันไปแล้ว','ลิงก์ยืนยันใช้ได้ครั้งเดียว ไม่ได้ตัดสต็อกซ้ำ ด้านล่างคือสถานะล่าสุดของคำสั่งซื้อ')}
+    <div class="mt-4 num text-lg font-semibold">${o.no}</div>
+    <ol class="mt-3 grid grid-cols-4 gap-1 text-center text-xs">${steps.map((t,i)=>`<li><div class="h-1.5 rounded-full ${i<=2?'bg-emerald-600':'bg-stone-200'}"></div><div class="mt-1.5 ${i===2?'font-semibold text-emerald-800':i<2?'text-stone-700':'text-stone-400'}">${t}</div></li>`).join('')}</ol>
+    <p class="text-sm text-stone-600 mt-3">ยืนยันเมื่อ 9 ต.ค. 69 17:20 · ${o.items.length} รายการ รวม ${baht(itemsTotal(o.items))}</p>
+    <div class="mt-3 border-t border-stone-200 pt-3">${itemsTable(o.items)}</div>`;}
+  if(S.cstate==='short'){let sh=S.pending?shortages(S.pending.items):[];if(!sh.length)sh=SAMPLE_SHORT;
+    body=`${hdr('!','bg-rose-100 text-rose-800','ยืนยันไม่สำเร็จ: สินค้าบางรายการไม่พอ','มีคนซื้อตัดหน้าระหว่างรอยืนยัน ตอนนี้บางรายการเหลือน้อยกว่าที่คุณสั่ง')}
+    <ul class="mt-4 space-y-2">${sh.map(e=>`<li class="rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm"><div class="font-medium text-rose-950">${esc(e.name)}</div><div class="text-rose-900">สั่ง ${e.want} ขายได้ ${e.have} <b>(ขาด ${e.want-e.have})</b></div>${e.expired?`<div class="text-stone-600 text-xs mt-0.5">ไม่นับล็อตที่หมดอายุแล้ว ${e.expired} ชิ้น</div>`:''}</li>`).join('')}</ul>
+    <div class="mt-4 rounded-lg bg-stone-50 border border-stone-200 p-3 text-sm space-y-0.5"><div>✓ ยังไม่มีการตัดสต็อก</div><div>✓ ตะกร้าของคุณยังอยู่ครบ</div><div>✓ ปรับจำนวนแล้วสั่งใหม่ จะได้ลิงก์ใหม่ทันที</div></div>
+    <button data-go="cart" class="${btn.primary} mt-4 min-h-[44px]">กลับไปแก้ตะกร้า</button>`;}
+  return `<div class="max-w-lg mx-auto">${bar}<div class="rounded-xl bg-white border border-stone-200 p-5 sm:p-6">${body}</div></div>`;
+}
+function cutStock(items){items.forEach(([c,,q])=>{let r=q;sellableLots(byCode(c)).forEach(l=>{const t=Math.min(r,l.remain);l.remain-=t;r-=t;});});}
+
+/* ===== นำเข้า stock หลายรายการด้วย .xlsx ===== */
+const XL_ROWS=[
+  {r:2, code:'P-1001',qty:'50', exp:'2026-12-01',st:'ok',  msg:'พร้อมนำเข้า'},
+  {r:3, code:'P-1001',qty:'30', exp:'2026-12-15',st:'ok',  msg:'ผ่าน · คนละล็อต (รหัสเดียวกัน exp ต่างกัน)'},
+  {r:4, code:'P-1001',qty:'20', exp:'2026-12-01',st:'warn',msg:'รหัสและ exp ซ้ำกับแถว 2 ตรวจว่าตั้งใจหรือไม่ (จะแยกเป็นอีกล็อต)'},
+  {r:5, code:'P-9999',qty:'10', exp:'2026-11-30',st:'err', msg:'ไม่พบรหัสสินค้านี้ในระบบ',create:true},
+  {r:6, code:'P-4002',qty:'12', exp:'2027-01-01',st:'err', msg:'สินค้านี้ปิดการขายอยู่ เปิดการขายในหน้าสินค้าก่อน'},
+  {r:7, code:'P-3001',qty:'0',  exp:'2027-03-01',st:'err', msg:'จำนวนต้องเป็นจำนวนเต็มมากกว่า 0'},
+  {r:8, code:'P-3002',qty:'5.5',exp:'2027-01-10',st:'err', msg:'จำนวนต้องเป็นจำนวนเต็มมากกว่า 0 (พบ 5.5)'},
+  {r:9, code:'P-1003',qty:'10', exp:'2026-10-01',st:'err', msg:'วันหมดอายุผ่านไปแล้ว ล็อตนี้ขายไม่ได้'},
+  {r:10,code:'P-1004',qty:'8',  exp:'31/12/2026',st:'err', msg:'รูปแบบวันที่ไม่ถูกต้อง ต้องเป็น yyyy-mm-dd'},
+  {r:11,code:'P-3003',qty:'',   exp:'2027-05-10',st:'err', msg:'กรอกไม่ครบ: ไม่มีจำนวน'},
+  {r:12,code:'P-2001',qty:'24', exp:'2026-10-14',st:'warn',msg:'หมดอายุใน 5 วัน (น้อยกว่า 7 วัน) ตรวจวันที่อีกครั้ง'},
+  {r:13,code:'P-3004',qty:'100',exp:'2027-06-01',st:'ok',  msg:'พร้อมนำเข้า'},
+];
+const xlRows=()=>S.xl.scn==='ok'?XL_ROWS.filter(r=>r.st!=='err'):XL_ROWS;
+const xlStat=()=>{const R=xlRows();const n=st=>R.filter(r=>r.st===st).length;
+  return {total:R.length,ok:n('ok'),warn:n('warn'),err:n('err'),lots:R.filter(r=>r.st!=='err').length,qty:R.filter(r=>r.st!=='err').reduce((t,r)=>t+(+r.qty||0),0)};};
+const fmtSize=b=>b<1024*1024?(b/1024).toFixed(0)+' KB':(b/1024/1024).toFixed(1)+' MB';
+function xlErrBox(){return S.xl.err?`<div class="xp ${fresh('xlerr-'+S.xl.err)?'expand-in':''}"><div class="xp-in"><p role="alert" class="mt-3 rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-sm text-rose-900">${esc(S.xl.err)}</p></div></div>`:'';}
+function xlMockBar(){
+  const x=S.xl,cur=x.st==='preview'?(x.scn==='err'?'prev-err':'prev-ok'):x.st;
+  const tabs=[['pick','เลือกไฟล์'],['checking','กำลังตรวจ'],['prev-err','ผลตรวจ (มีแถวผิด)'],['prev-ok','ผลตรวจ (ผ่าน)'],['done','สำเร็จ'],['expired','ผลตรวจหมดอายุ']];
+  return `<div class="mt-3 rounded-xl border border-dashed border-stone-300 bg-white p-3">
+    <div class="text-xs text-stone-500 mb-2">mockup: สลับดูสถานะ</div>
+    <div class="flex gap-1 overflow-x-auto pb-1" role="group">${tabs.map(([k,l])=>`<button data-xls="${k}" aria-pressed="${cur===k}" class="whitespace-nowrap min-h-[40px] px-3 rounded-lg text-sm ${cur===k?'bg-stone-900 text-white':'bg-stone-100 text-stone-700 hover:bg-stone-200'}">${l}</button>`).join('')}</div>
+    <label class="mt-2 inline-flex items-center gap-2 text-sm text-stone-600 min-h-[40px]"><input type="checkbox" id="xlDup" ${x.dup?'checked':''}> จำลอง "ไฟล์นี้เคยนำเข้าแล้ว"</label></div>`;
+}
+function xlPick(){
+  return `<div class="in-up rounded-xl bg-white border border-stone-200 p-4 sm:p-5">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div><h2 class="font-semibold">อัปโหลดไฟล์ Excel</h2><p class="text-sm text-stone-600 mt-0.5">ตรวจก่อนบันทึก ถ้ามีแถวผิดแม้แถวเดียว ระบบจะไม่นำเข้าเลยทั้งไฟล์</p></div>
+      <button data-xltemplate class="${btn.ghost} min-h-[40px]">ดาวน์โหลด template (.xlsx)</button>
+    </div>
+    <label for="xlFile" data-drop class="dz mt-4 flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-stone-300 px-4 py-10 text-center cursor-pointer hover:bg-stone-50 focus-within:ring-2 focus-within:ring-emerald-600">
+      <svg viewBox="0 0 24 24" class="w-9 h-9 text-emerald-700" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V5m0 0l-4 4m4-4l4 4M5 16v2.5A1.5 1.5 0 006.5 20h11a1.5 1.5 0 001.5-1.5V16"/></svg>
+      <span class="font-medium">ลากไฟล์มาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์</span>
+      <span class="text-sm text-stone-500">รองรับเฉพาะ .xlsx ขนาดไม่เกิน 2 MB</span>
+      <input id="xlFile" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="sr-only-in">
+    </label>
+    ${xlErrBox()}
+    <div class="mt-4 rounded-lg bg-stone-50 border border-stone-200 p-3 text-sm">
+      <div class="font-medium">คอลัมน์ที่ต้องมี (แถวแรกเป็นหัวตาราง)</div>
+      <div class="mt-2 flex flex-wrap gap-2 text-xs"><span class="rounded-md bg-white border border-stone-300 px-2 py-1">รหัสสินค้า</span><span class="rounded-md bg-white border border-stone-300 px-2 py-1">จำนวน</span><span class="rounded-md bg-white border border-stone-300 px-2 py-1">วันหมดอายุ (yyyy-mm-dd)</span></div>
+      <p class="mt-2 text-stone-600">รหัสสินค้าต้องมีในระบบก่อน ถ้าเป็นสินค้าใหม่ให้ไปสร้างในหน้าสินค้าก่อนแล้วค่อยนำเข้า</p>
+    </div>
+    <button data-xlsample class="${btn.link} mt-3 min-h-[40px]">mockup: ใช้ไฟล์ตัวอย่าง stock-oct-w2.xlsx</button>
+  </div>`;
+}
+function xlChecking(){
+  const f=S.xl.file||{name:'stock-oct-w2.xlsx',size:48000};
+  return `<div class="in-up rounded-xl bg-white border border-stone-200 p-8 text-center" role="status" aria-live="polite">
+    <div class="spinner mx-auto" aria-hidden="true"></div>
+    <div class="mt-4 font-medium">กำลังตรวจไฟล์…</div>
+    <div class="text-sm text-stone-600 mt-1 break-all">${esc(f.name)} · ${fmtSize(f.size)}</div>
+    <p class="text-xs text-stone-500 mt-3">ตรวจรหัสสินค้า จำนวน และวันหมดอายุทุกแถว ยังไม่มีการบันทึกใดๆ</p></div>`;
+}
+function xlPreview(){
+  const x=S.xl,st=xlStat(),f=x.file||{name:'stock-oct-w2.xlsx',size:48000};
+  let rows=xlRows();if(x.filter)rows=rows.filter(r=>r.st!=='ok');
+  const card=(l,v,cls)=>`<div class="rounded-xl border p-3 ${cls}"><div class="text-xs">${l}</div><div class="text-2xl font-semibold num leading-tight">${v}</div></div>`;
+  const badgeOf={ok:badge('bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200','ผ่าน'),warn:badge('bg-amber-100 text-amber-800 ring-1 ring-amber-300','เตือน'),err:badge('bg-rose-100 text-rose-800 ring-1 ring-rose-300','ผิด')};
+  const rowBg={ok:'',warn:'bg-amber-50/70',err:'bg-rose-50'};
+  const dup=x.dup&&!st.err;
+  return `<div class="in-up space-y-4">
+    <div class="rounded-xl bg-white border border-stone-200 p-4 flex flex-wrap items-center justify-between gap-3">
+      <div class="min-w-0"><div class="text-xs text-stone-500">ผลตรวจไฟล์</div><div class="font-medium break-all">${esc(f.name)} <span class="text-sm text-stone-500 font-normal">· ${fmtSize(f.size)}</span></div>
+        <div class="text-xs text-stone-500 mt-0.5">ผลตรวจนี้ใช้ได้ 10 นาที (หมดอายุ 17:22) · ยังไม่ได้บันทึก</div></div>
+      <button data-xlnew class="${btn.ghost} min-h-[40px]">เลือกไฟล์ใหม่</button>
+    </div>
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3">
+      ${card('แถวทั้งหมด',st.total,'bg-white border-stone-200 text-stone-700')}
+      ${card('ผ่าน',st.ok,'bg-emerald-50 border-emerald-200 text-emerald-800')}
+      ${card('เตือน',st.warn,'bg-amber-50 border-amber-300 text-amber-900')}
+      ${card('ผิด',st.err,st.err?'bg-rose-50 border-rose-300 text-rose-900':'bg-white border-stone-200 text-stone-500')}
+      <div class="col-span-2 sm:col-span-1 rounded-xl border p-3 bg-white border-stone-200 text-stone-700"><div class="text-xs">จำนวนรวมที่จะเข้า</div><div class="text-2xl font-semibold num leading-tight">${st.qty.toLocaleString('th-TH')} <span class="text-sm font-normal">ชิ้น</span></div><div class="text-xs text-stone-500">${st.lots} ล็อต${st.err?' (เมื่อแก้ไฟล์ครบ)':''}</div></div>
+    </div>
+    <div class="rounded-xl bg-white border border-stone-200 overflow-hidden">
+      <div class="px-4 py-3 border-b border-stone-200 flex flex-wrap items-center justify-between gap-2">
+        <div class="font-medium">รายแถว</div>
+        <label class="inline-flex items-center gap-2 text-sm min-h-[40px]"><input type="checkbox" id="xlFilter" ${x.filter?'checked':''}> แสดงเฉพาะแถวที่ผิด/เตือน</label>
+      </div>
+      <div class="overflow-x-auto"><table class="w-full min-w-[820px] text-sm">
+        <thead class="bg-stone-50 text-stone-600 text-left"><tr><th class="font-medium px-4 py-2 whitespace-nowrap">แถว Excel</th><th class="font-medium px-2">รหัส</th><th class="font-medium px-2">ชื่อสินค้า</th><th class="font-medium px-2 text-right">จำนวน</th><th class="font-medium px-2">exp</th><th class="font-medium px-2">สถานะ</th><th class="font-medium px-4">ข้อความ</th></tr></thead>
+        <tbody class="divide-y divide-stone-100">${rows.map(r=>{const p=byCode(r.code);return `<tr class="${rowBg[r.st]}">
+          <td class="px-4 py-2.5 num whitespace-nowrap font-medium">${r.r}</td>
+          <td class="px-2 num whitespace-nowrap">${r.code}</td>
+          <td class="px-2">${p?esc(p.name):'<span class="text-stone-400">—</span>'}</td>
+          <td class="px-2 text-right num ${r.st==='err'&&/จำนวน/.test(r.msg)?'text-rose-700 font-medium':''}">${r.qty===''?'<span class="text-rose-700">(ว่าง)</span>':r.qty}</td>
+          <td class="px-2 num whitespace-nowrap ${r.st==='err'&&/วัน/.test(r.msg)?'text-rose-700 font-medium':''}">${r.exp}</td>
+          <td class="px-2 whitespace-nowrap">${badgeOf[r.st]}</td>
+          <td class="px-4 py-2 ${r.st==='err'?'text-rose-900':r.st==='warn'?'text-amber-900':'text-stone-600'}">${r.msg}${r.create?` <button data-xlcreate class="${btn.link} min-h-[32px]">สร้างสินค้า</button>`:''}</td></tr>`}).join('')}
+        ${rows.length?'':'<tr><td colspan="7" class="px-4 py-6 text-center text-stone-500">ไม่มีแถวที่ผิดหรือเตือน</td></tr>'}</tbody></table></div>
+    </div>
+    <div class="rounded-xl bg-white border border-stone-200 p-4">
+      ${dup?`<div class="xp ${fresh('xldup')?'expand-in':''}"><div class="xp-in"><div role="alert" class="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"><b>ไฟล์นี้เคยนำเข้าแล้ว</b> (IMP-0011 · 8 ต.ค. 69 14:20) การนำเข้าซ้ำจะทำให้สต็อกเพิ่มเป็น 2 เท่า
+        <label class="mt-2 flex items-start gap-2 min-h-[40px]"><input type="checkbox" id="xlAck" class="mt-1" ${x.ack?'checked':''}> <span>ยืนยันว่าตั้งใจนำเข้าซ้ำ</span></label></div></div></div>`:''}
+      <div class="flex flex-wrap items-center gap-3">
+        <button data-xlconfirm class="${btn.primary} min-h-[44px] px-5" ${st.err||(dup&&!x.ack)?'disabled':''}>ยืนยันนำเข้า ${st.lots} ล็อต</button>
+        ${st.err?`<span class="text-sm text-rose-800"><b>แก้ไฟล์แล้วอัปโหลดใหม่</b> พบ ${st.err} แถวที่ผิด จึงยังนำเข้าไม่ได้ (นำเข้าทั้งไฟล์หรือไม่นำเข้าเลย)</span>`:dup&&!x.ack?'<span class="text-sm text-stone-600">ติ๊กยืนยันก่อนจึงจะนำเข้าได้</span>':'<span class="text-sm text-stone-600">ไม่พบแถวที่ผิด พร้อมนำเข้า</span>'}
+        <button data-xlnew class="${btn.ghost} min-h-[44px] sm:ml-auto">เลือกไฟล์ใหม่</button>
+      </div>
+    </div></div>`;
+}
+function xlDone(){
+  const r=S.xl.result||{id:'IMP-0012',lots:xlStat().lots,qty:xlStat().qty,file:'stock-oct-w2.xlsx'};
+  return `<div class="in-up rounded-xl bg-white border border-stone-200 p-5 sm:p-6">
+    <div class="w-12 h-12 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center text-2xl font-semibold" aria-hidden="true">✓</div>
+    <h2 class="text-xl font-semibold mt-3">นำเข้า ${r.lots} ล็อต รวม ${r.qty.toLocaleString('th-TH')} ชิ้น</h2>
+    <p class="text-stone-600 mt-1 break-all"><span class="num">${r.id}</span> · ${esc(r.file)} · บันทึกทั้งไฟล์เรียบร้อย</p>
+    <div class="mt-4 flex flex-wrap gap-3"><button data-xlhist class="${btn.primary} min-h-[44px]">ดูประวัติการนำเข้า</button><button data-xlnew class="${btn.ghost} min-h-[44px]">นำเข้าไฟล์อื่น</button></div></div>`;
+}
+function xlExpired(){
+  return `<div class="in-up rounded-xl bg-white border border-stone-200 p-5 sm:p-6">
+    <div class="xp ${fresh('xlexp')?'expand-in':''}"><div class="xp-in"><div role="alert" class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-900"><b>ผลตรวจหมดอายุ</b> อัปโหลดใหม่อีกครั้ง
+      <div class="text-sm mt-0.5">ผลตรวจเก็บไว้ 10 นาที เพื่อป้องกันนำเข้าด้วยข้อมูลที่เปลี่ยนไปแล้ว ยังไม่มีการบันทึกใดๆ</div></div></div></div>
+    <button data-xlnew class="${btn.primary} mt-4 min-h-[44px]">เลือกไฟล์ใหม่</button></div>`;
+}
+function xlHistory(){
+  const open=S.xl.openBatch;
+  return `<div id="xlHistory" class="mt-4 bg-white border border-stone-200 rounded-xl overflow-hidden">
+    <div class="px-4 py-3 border-b border-stone-200 font-medium">ประวัติการนำเข้า (รายไฟล์)</div>
+    <div class="overflow-x-auto"><table class="w-full min-w-[720px] text-sm">
+      <thead class="bg-stone-50 text-stone-600 text-left"><tr><th class="font-medium px-4 py-2">ไฟล์</th><th class="font-medium px-2 text-right">จำนวนล็อต</th><th class="font-medium px-2 text-right">จำนวนรวม</th><th class="font-medium px-2">ผู้นำเข้า</th><th class="font-medium px-2">เวลา</th><th class="px-4"></th></tr></thead>
+      <tbody class="divide-y divide-stone-100">${DB.batches.map(b=>{const q=b.lots.reduce((t,l)=>t+l[1],0),isOpen=open===b.id;return `<tr>
+        <td class="px-4 py-2.5"><div class="font-medium break-all">${esc(b.file)}</div><div class="text-xs text-stone-500 num">${b.id}</div></td>
+        <td class="px-2 text-right num">${b.lots.length}</td><td class="px-2 text-right num">${q.toLocaleString('th-TH')}</td>
+        <td class="px-2 whitespace-nowrap">${b.by}</td><td class="px-2 num whitespace-nowrap">${b.at}</td>
+        <td class="px-4 text-right whitespace-nowrap"><button data-xlbatch="${b.id}" aria-expanded="${isOpen}" class="${btn.link} min-h-[40px]">${isOpen?'ซ่อนล็อต':'ดูล็อต'}</button></td></tr>
+        ${isOpen?`<tr class="bg-stone-50"><td colspan="6" class="px-4 py-0"><div class="xp ${fresh('batch-'+b.id)?'expand-in':''}"><div class="xp-in"><table class="w-full text-sm my-2"><thead class="text-stone-500 text-left"><tr><th class="font-medium py-1">รหัส</th><th class="font-medium">ชื่อสินค้า</th><th class="font-medium text-right">จำนวน</th><th class="font-medium text-right">exp</th></tr></thead>
+          <tbody>${b.lots.map(l=>`<tr class="border-t border-stone-200"><td class="py-1.5 num whitespace-nowrap">${l[0]}</td><td>${esc((byCode(l[0])||{name:'—'}).name)}</td><td class="text-right num">${l[1]}</td><td class="text-right num whitespace-nowrap pl-3">${fmtDate(l[2])}</td></tr>`).join('')}</tbody></table></div></div></td></tr>`:''}`}).join('')}</tbody></table></div></div>`;
+}
+function excelBody(){
+  const x=S.xl;
+  const main={pick:xlPick,checking:xlChecking,preview:xlPreview,done:xlDone,expired:xlExpired}[x.st]();
+  return xlMockBar()+`<div class="mt-4">${main}</div>${['pick','done','expired'].includes(x.st)?xlHistory():''}`;
+}
+function pageImport(pref){
+  const seg=(m,l)=>`<button data-impmode="${m}" aria-pressed="${S.impMode===m}" class="flex-1 sm:flex-none min-h-[40px] px-4 text-sm font-medium rounded-md ${S.impMode===m?'bg-white text-emerald-800 shadow-sm ring-1 ring-stone-200':'text-stone-600 hover:text-stone-900'}">${l}</button>`;
+  return `
+  <h1 class="text-2xl font-semibold">นำเข้าสต็อก</h1>
+  <p class="text-sm text-stone-600">นำเข้า 1 ครั้ง = 1 ล็อต แต่ละล็อตมีวันหมดอายุของตัวเอง</p>
+  <div class="mt-4 inline-flex w-full sm:w-auto gap-1 rounded-lg bg-stone-100 p-1" role="group" aria-label="โหมดนำเข้า">${seg('single','ทีละรายการ')}${seg('excel','หลายรายการ (Excel)')}</div>
+  ${S.impMode==='single'?`<div class="mt-0">${pageImportSingle(pref)}</div>`:excelBody()}`;
+}
+function xlHandleFile(f){
+  const x=S.xl;x.err=null;x.ack=false;
+  if(!f)return;
+  if(!/\.xlsx$/i.test(f.name)){x.err='รองรับเฉพาะไฟล์ .xlsx';x.st='pick';return render();}
+  if(f.size>2*1024*1024){x.err='ไฟล์ใหญ่เกิน 2 MB ('+fmtSize(f.size)+') ลดจำนวนแถวหรือแบ่งเป็นหลายไฟล์';x.st='pick';return render();}
+  x.file={name:f.name,size:f.size};x.st='checking';render();
+  clearTimeout(xlHandleFile.h);xlHandleFile.h=setTimeout(()=>{if(S.xl.st==='checking'){S.xl.st='preview';S.xl.scn='err';render();}},1300);
+}
+function xlApply(){
+  const x=S.xl,R=xlRows().filter(r=>r.st!=='err'),id='IMP-0012';
+  const lots=R.map(r=>[r.code,+r.qty,r.exp]);
+  lots.forEach(([c,q,e])=>{const p=byCode(c);if(p)p.lots.push({id:'L-X'+Math.random().toString(36).slice(2,6).toUpperCase(),recv:'2026-10-09',qty:q,remain:q,exp:e});});
+  const at='2026-10-09 '+new Date().toTimeString().slice(0,5);
+  DB.batches.unshift({id,file:(x.file||{name:'stock-oct-w2.xlsx'}).name,by:EMAIL.staff,at,lots});
+  x.result={id,file:DB.batches[0].file,lots:lots.length,qty:lots.reduce((t,l)=>t+l[1],0)};
+  x.st='done';x.openBatch=id;
+  toast(`นำเข้า ${x.result.lots} ล็อต รวม ${x.result.qty} ชิ้น เรียบร้อย`);render();
+}
+
+function forbidden(){
+  const need=PAGES.find(p=>p.id===S.page).role[0];
+  if(S.role==='guest'&&S.page!=='check') return `<div class="max-w-md mx-auto mt-10 bg-white border border-stone-200 rounded-xl p-8 text-center"><div class="text-4xl font-semibold text-stone-300 num">401</div><h1 class="text-lg font-semibold mt-2">กรุณาเข้าสู่ระบบก่อน</h1><p class="text-sm text-stone-600 mt-1">หน้านี้สำหรับสมาชิกเท่านั้น</p><button data-go="login" class="${btn.primary} mt-4 min-h-[44px]">เข้าสู่ระบบ</button></div>`;
+  if(S.page==='check') return `<div class="max-w-md mx-auto mt-10 bg-white border border-stone-200 rounded-xl p-8 text-center"><p class="text-sm text-stone-600">หน้านี้ใช้หลังสั่งซื้อในฐานะผู้เยี่ยมชม สลับเป็น Guest เพื่อดู</p></div>`;
+  return `<div class="max-w-md mx-auto mt-10 bg-white border border-stone-200 rounded-xl p-8 text-center">
+    <div class="text-4xl font-semibold text-stone-300 num">403</div>
+    <h1 class="text-lg font-semibold mt-2">หน้านี้สำหรับ${ROLE_TH[need]}เท่านั้น</h1>
+    <p class="text-sm text-stone-600 mt-1">บัญชีของคุณเป็น${ROLE_TH[S.role]} ไม่มีสิทธิ์เข้าหน้านี้</p>
+    <button data-go="${S.role==='staff'?'products':'shop'}" class="${btn.primary} mt-4">กลับหน้าหลัก</button></div>`;
+}
+
+/* ---------- render ---------- */
+function render(){
+  S.now=new Set();
+  if(S.anim==='page'||S.anim==='grid')S.revealed.clear(); // นำทาง/กรอง = เริ่มชุดการ์ดใหม่ ต้องเคลียร์ก่อน card() อ่านค่า
+  const pg=PAGES.find(p=>p.id===S.page);
+  document.getElementById('roleGuest').className='px-3 py-1 rounded-md '+(S.role==='guest'?'bg-white text-stone-900 font-medium':'text-stone-300');
+  document.getElementById('roleCustomer').className='px-3 py-1 rounded-md '+(S.role==='customer'?'bg-white text-stone-900 font-medium':'text-stone-300');
+  document.getElementById('roleStaff').className='px-3 py-1 rounded-md '+(S.role==='staff'?'bg-white text-stone-900 font-medium':'text-stone-300');
+  document.getElementById('pageTabs').innerHTML=PAGES.map(p=>`<button data-go="${p.id}" class="whitespace-nowrap rounded-md px-2.5 py-1 text-xs ${S.page===p.id?'bg-emerald-700 text-white':'text-stone-300 hover:bg-stone-800'}">${p.label}</button>`).join('');
+  renderNav();
+  const v=document.getElementById('view');
+  let html;
+  if(!allowed(pg)) html=forbidden();
+  else html={login:pageLogin,shop:pageShop,cart:pageCart,check:pageCheck,confirm:pageConfirm,orders:pageOrders,products:pageProducts,import:()=>pageImport(S.prefCode)}[S.page]();
+  const ae=document.activeElement,focusId=ae&&['q','gName','gContact'].includes(ae.id)?ae.id:null;
+  const pos=focusId?ae.selectionStart:0;
+  v.classList.toggle('anim-page',S.anim==='page');v.classList.toggle('anim-grid',!!S.anim);
+  v.innerHTML=html;
+  if(focusId){const q=document.getElementById(focusId);if(q){q.focus();try{q.setSelectionRange(pos,pos);}catch(_){}}}
+  document.getElementById('drawerRoot').innerHTML=S.drawer?drawerLots(S.drawer):'';
+  document.getElementById('modalRoot').innerHTML=S.modal!==null?modalEdit(S.modal):'';
+  if(S.page==='import' && allowed(pg)) bindImport();
+  setupReveal(S.anim);
+  S.seen=S.now;S.anim=null;S.bump=null;S.expandCode=null;
+}
+function go(id){Object.keys(S.rolls).forEach(k=>{if(k.startsWith('card-'))delete S.rolls[k];});S.anim='page';S.lastTotal=undefined;S.page=id;S.drawer=null;S.modal=null;S.cartErr=null;render();window.scrollTo(0,0);}
+
+function bindImport(){
+  const code=document.getElementById('iCode'),hint=document.getElementById('iHint');
+  if(!code)return;
+  const upd=()=>{const p=byCode(code.value.trim());hint.innerHTML=!code.value.trim()?'':p?`<span class="text-emerald-800">✓ ${esc(p.name)} · ขายได้ ${sellable(p)} ชิ้น</span>`:`<span class="text-rose-700">ไม่พบรหัสสินค้านี้</span>`;};
+  code.addEventListener('input',upd);upd();
+  document.getElementById('impForm').addEventListener('submit',e=>{
+    e.preventDefault();
+    const p=byCode(code.value.trim()),qty=+document.getElementById('iQty').value,exp=document.getElementById('iExp').value,err=document.getElementById('iErr');
+    if(!p) return err.textContent='ไม่พบรหัสสินค้านี้ กรุณาเลือกจากรายการ';
+    if(!(qty>=1)) return err.textContent='จำนวนต้องมากกว่า 0';
+    if(!exp) return err.textContent='กรุณาระบุวันหมดอายุ';
+    if(daysTo(exp)<0) return err.textContent='วันหมดอายุผ่านไปแล้ว ล็อตนี้จะขายไม่ได้ กรุณาตรวจสอบวันที่';
+    p.lots.push({id:'L-'+Date.now().toString().slice(-6),recv:'2026-10-09',qty,remain:qty,exp});
+    DB.imports.unshift({at:'2026-10-09 '+new Date().toTimeString().slice(0,5),code:p.code,name:p.name,qty,exp,by:EMAIL.staff});
+    toast(`นำเข้า ${p.name} +${qty} ชิ้น เรียบร้อย`);S.prefCode='';render();
+  });
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click',e=>{
+  const t=e.target.closest('button,[data-close-drawer],[data-close-modal]');if(!t)return;
+  const D=t.dataset;
+  if('go' in D) return go(D.go);
+  if('fill' in D){document.getElementById('lEmail').value=EMAIL[D.fill];document.getElementById('lPass').value='Test1234';return;}
+  if('type' in D){S.type=D.type;S.anim='grid';return render();}
+  if('clear' in D){S.q='';S.type='ทั้งหมด';S.anim='grid';return render();}
+  if('add' in D){const p=byCode(D.add),i=DB.cart.find(x=>x.code===D.add),cur=i?i.qty:0,cap=sellable(p)-cur,n=Math.min(S.pick[D.add]||1,cap);
+    if(n<1)return;const numEl=document.querySelector('[data-stepnum="'+D.add+'"]'),before=cartCount();i?i.qty+=n:DB.cart.push({code:D.add,qty:n});S.pick[D.add]=1;S.flash={code:D.add,n,ts:Date.now()};clearTimeout(S.fh);S.fh=setTimeout(()=>{S.flash=null;if(S.page==='shop')render();},2000);S.stepReset={code:D.add,ts:Date.now()};flyChip(numEl,n,before,D.add);return render();}
+  if('pinc' in D){S.pick[D.pinc]=(S.pick[D.pinc]||1)+1;S.bump='p-'+D.pinc;return render();}
+  if('pdec' in D){S.pick[D.pdec]=Math.max(1,(S.pick[D.pdec]||1)-1);S.bump='p-'+D.pdec;return render();}
+  if('inc' in D){S.bump='c-'+D.inc;DB.cart.find(x=>x.code===D.inc).qty++;if(S.cartErr)S.cartErr=validateCart();return render();}
+  if('dec' in D){S.bump='c-'+D.dec;const i=DB.cart.find(x=>x.code===D.dec);if(i.qty>1)i.qty--;if(S.cartErr)S.cartErr=validateCart();return render();}
+  if('del' in D){const doIt=()=>{const idx=DB.cart.findIndex(x=>x.code===D.del);if(idx<0)return;const item=DB.cart[idx];S.undo={items:[{item,idx}]};DB.cart.splice(idx,1);if(S.cartErr)S.cartErr=validateCart();toastUndo('ลบ '+byCode(item.code).name+' แล้ว');return render();};const row=document.querySelector(`[data-row="${D.del}"]`);if(row&&!S.deleting){S.deleting=true;row.classList.add('collapsing');setTimeout(()=>{S.deleting=false;doIt();},REDUCED()?120:200);return;}doIt();return;}
+  if('undo' in D){if(S.undo){S.expandCode=S.undo.items[0].item.code;S.undo.items.forEach(({item,idx})=>DB.cart.splice(Math.min(idx,DB.cart.length),0,item));S.undo=null;if(S.cartErr)S.cartErr=validateCart();}document.getElementById('toast').classList.remove('show');return render();}
+  if('fit' in D){DB.cart.find(x=>x.code===D.fit).qty=sellable(byCode(D.fit));S.cartErr=validateCart();return render();}
+  if('fixall' in D){DB.cart=DB.cart.filter(i=>sellable(byCode(i.code))>0);DB.cart.forEach(i=>i.qty=Math.min(i.qty,sellable(byCode(i.code))));S.cartErr=validateCart();toast('ปรับจำนวนให้เท่าที่ขายได้แล้ว ตรวจยอดรวมอีกครั้งก่อนสั่งซื้อ');return render();}
+  if('impmode' in D){S.impMode=D.impmode;S.drawer=null;return render();}
+  if('xlsample' in D){return xlHandleFile({name:'stock-oct-w2.xlsx',size:48*1024});}
+  if('xltemplate' in D){toast('ดาวน์โหลด stock-import-template.xlsx (mockup)');return;}
+  if('xlnew' in D){Object.assign(S.xl,{st:'pick',file:null,err:null,ack:false,result:null});clearTimeout(xlHandleFile.h);return render();}
+  if('xls' in D){const x=S.xl,k=D.xls;x.err=null;x.ack=false;if(!x.file)x.file={name:'stock-oct-w2.xlsx',size:48*1024};clearTimeout(xlHandleFile.h);
+    if(k==='prev-err'){x.st='preview';x.scn='err';}else if(k==='prev-ok'){x.st='preview';x.scn='ok';}else x.st=k;
+    if(k==='done'){x.scn='ok';x.result={id:'IMP-0012',file:x.file.name,lots:xlStat().lots,qty:xlStat().qty};}
+    if(k==='pick')x.file=null;
+    return render();}
+  if('xlcreate' in D){S.page='products';S.modal='';S.anim='page';return render();}
+  if('xlhist' in D){const h=document.getElementById('xlHistory');if(h)h.scrollIntoView({behavior:REDUCED()?'auto':'smooth',block:'start'});else{S.xl.st='pick';render();}return;}
+  if('xlbatch' in D){S.xl.openBatch=S.xl.openBatch===D.xlbatch?null:D.xlbatch;return render();}
+  if('xlconfirm' in D){const st=xlStat();if(st.err||(S.xl.dup&&!S.xl.ack))return;return xlApply();}
+  if('gmode' in D){S.g.mode=D.gmode;S.g.contact='';delete S.g.errs.contact;S.g.rate=null;return render();}
+  if('gorder' in D){
+    S.tick++;const g=S.g,errs=validateCart(),fe={},c=g.contact.trim();
+    if(g.name.trim().length<2)fe.name='กรุณากรอกชื่อ (อย่างน้อย 2 ตัวอักษร)';
+    if(!c)fe.contact=g.mode==='email'?'กรุณากรอกอีเมล':'กรุณากรอกเบอร์โทรศัพท์';
+    else if(g.mode==='email'&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(c))fe.contact='รูปแบบอีเมลไม่ถูกต้อง เช่น name@example.com';
+    else if(g.mode==='sms'&&!/^0\d{9}$/.test(c.replace(/[-\s]/g,'')))fe.contact='เบอร์โทรต้องเป็นตัวเลข 10 หลัก ขึ้นต้นด้วย 0';
+    g.errs=fe;g.rate=null;if(errs.length)S.cartErr=errs;
+    if(Object.keys(fe).length||errs.length){render();const a=document.querySelector('[aria-invalid=true],[role=alert]');if(a)a.scrollIntoView({block:'center'});return;}
+    if(S.sim429){g.rate=14;render();const a=document.querySelector('[role=alert]');if(a)a.scrollIntoView({block:'center'});return;}
+    S.pending={no:'ORD-0009',name:g.name.trim(),mode:g.mode,contactMasked:maskContact(g.mode,c),status:'pending',items:DB.cart.map(i=>{const p=byCode(i.code);return [p.code,p.name,i.qty,p.price];})};
+    S.cool=60;S.cstate='ok';return go('check');
+  }
+  if('resend' in D){S.cool=60;toast('ส่งลิงก์ใหม่แล้ว ลิงก์เดิมใช้ไม่ได้อีก');return render();}
+  if('simlink' in D){const o=S.pending;if(!o)return;
+    if(o.status==='confirmed')S.cstate='done';
+    else if(shortages(o.items).length)S.cstate='short';
+    else{cutStock(o.items);o.status='confirmed';DB.cart=[];S.cstate='ok';}
+    return go('confirm');}
+  if('cs' in D){S.cstate=D.cs;return render();}
+  if('order' in D){S.tick++;
+    const errs=validateCart();
+    if(errs.length){S.cartErr=errs;render();const a=document.querySelector('[role=alert]');if(a)a.scrollIntoView({block:'center'});return;}
+    const items=DB.cart.map(i=>{const p=byCode(i.code);return [p.name,i.qty,p.price];});
+    DB.orders.unshift({no:'ORD-0008',date:'2026-10-09',status:'สำเร็จ',items});DB.cart=[];S.openOrder='ORD-0008';go('orders');toast('สั่งซื้อสำเร็จ');return;
+  }
+  if('orderToggle' in D){S.openOrder=S.openOrder===D.orderToggle?null:D.orderToggle;return render();}
+  if('lots' in D){S.drawer=D.lots;return render();}
+  if('closeDrawer' in D){const root=document.getElementById('drawerRoot'),a=root.querySelector('aside'),bd=root.firstElementChild;
+    if(a&&!S.closing){S.closing=true;a.classList.remove('drawer-in');a.classList.add('drawer-out');bd.classList.remove('fade-in');bd.classList.add('fade-out');setTimeout(()=>{S.closing=false;S.drawer=null;render();},REDUCED()?120:180);return;}
+    S.drawer=null;return render();}
+  if('edit' in D){S.modal=D.edit;return render();}
+  if('closeModal' in D){S.modal=null;return render();}
+  if('toggle' in D){const p=byCode(D.toggle);p.active=!p.active;toast(p.active?'เปิดการขายแล้ว':'ปิดการขายแล้ว ลูกค้าจะไม่เห็นสินค้านี้');return render();}
+  if('goimport' in D){S.prefCode=D.goimport;S.drawer=null;S.page='import';return render();}
+});
+document.addEventListener('input',e=>{const id=e.target.id;
+  if(id==='q'){S.q=e.target.value;S.anim='grid';render();}
+  if(id==='gName'||id==='gContact'){const k=id==='gName'?'name':'contact';S.g[k]=e.target.value;if(S.g.errs[k]){delete S.g.errs[k];render();}}});
+document.addEventListener('change',e=>{const id=e.target.id;
+  if(id==='sim429')S.sim429=e.target.checked;
+  if(id==='xlFile')xlHandleFile(e.target.files[0]);
+  if(id==='xlFilter'){S.xl.filter=e.target.checked;render();}
+  if(id==='xlAck'){S.xl.ack=e.target.checked;render();}
+  if(id==='xlDup'){S.xl.dup=e.target.checked;S.xl.ack=false;render();}});
+['dragenter','dragover'].forEach(ev=>document.addEventListener(ev,e=>{const z=e.target.closest&&e.target.closest('[data-drop]');if(z){e.preventDefault();z.classList.add('drag');}}));
+document.addEventListener('dragleave',e=>{const z=e.target.closest&&e.target.closest('[data-drop]');if(z&&!z.contains(e.relatedTarget))z.classList.remove('drag');});
+document.addEventListener('drop',e=>{const z=e.target.closest&&e.target.closest('[data-drop]');if(z){e.preventDefault();z.classList.remove('drag');xlHandleFile(e.dataTransfer.files[0]);}});
+setInterval(()=>{if(S.cool>0){S.cool--;const b=document.getElementById('resendBtn');if(b){b.disabled=S.cool>0;b.textContent=S.cool>0?`ส่งอีกครั้งได้ใน ${S.cool} วินาที`:'ส่งลิงก์อีกครั้ง';}}},1000);
+document.addEventListener('submit',e=>{
+  if(e.target.id==='loginForm'){e.preventDefault();const em=document.getElementById('lEmail').value.trim();
+    S.role=em.startsWith('staff')?'staff':'customer';go(S.role==='staff'?'products':'shop');}
+  if(e.target.id==='prodForm'){e.preventDefault();S.modal=null;toast('บันทึกสินค้าแล้ว (mockup)');render();}
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&(S.drawer||S.modal!==null)){S.drawer=null;S.modal=null;render();}});
+document.getElementById('roleGuest').onclick=()=>{S.role='guest';go(S.page==='login'?'login':'shop');};
+document.getElementById('roleCustomer').onclick=()=>{S.role='customer';go(S.page==='login'?'login':'shop');};
+document.getElementById('roleStaff').onclick=()=>{S.role='staff';go(S.page==='login'?'login':'products');};
+document.getElementById('resetBtn').onclick=()=>{DB=seed();S.cartErr=null;S.q='';S.type='ทั้งหมด';render();toast('รีเซ็ตข้อมูลตัวอย่างแล้ว');};
+S.anim='page';render();
+</script>
+</body>
+</html>

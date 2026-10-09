@@ -1,0 +1,13 @@
+bin/
+obj/
+node_modules/
+.next/
+*.db
+*.db-shm
+*.db-wal
+.env.local
+outbox/
+e2e/shots/
+
+# QA reports & screenshots (local only)
+qa/

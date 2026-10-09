@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-plex), system-ui, sans-serif;
+}
+
+/* Tailwind v4 dropped the v3 default border colour; keep the v3 behaviour the mockup was drawn with */
+@layer base {
+  *, ::after, ::before, ::backdrop, ::file-selector-button { border-color: var(--color-stone-200, #e7e5e4); }
+  button:not(:disabled), [role="button"]:not(:disabled) { cursor: pointer; }
+}
+
+body { font-family: var(--font-plex), system-ui, sans-serif; }
+.num { font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 2px solid #047857; outline-offset: 2px; }
+button:focus-visible, a:focus-visible, summary:focus-visible { box-shadow: 0 0 0 5px rgba(4,120,87,.18); }
+
+/* ===== MOTION TOKENS (ยกจาก design/mockup.html) ===== */
+:root { --dy: 8px; --dx: 100%; --pop: 1.28; --shake: 4px; --stag: 35ms; --r0: 0fr; --o0: 1; --dur: .2s; --roll: 100%; }
+@media (prefers-reduced-motion: reduce) {
+  :root { --dy: 0px; --dx: 0%; --pop: 1; --shake: 0px; --stag: 0ms; --r0: 1fr; --o0: 0; --dur: .12s; --roll: 0%; }
+}
+@keyframes pageIn { from { opacity: 0; transform: translateY(var(--dy)); } to { opacity: 1; transform: none; } }
+@keyframes badgePop { 0% { transform: scale(1); } 45% { transform: scale(var(--pop)); } 100% { transform: scale(1); } }
+@keyframes numBump { from { opacity: .25; transform: translateY(calc(var(--dy) * -.5)); } to { opacity: 1; transform: none; } }
+@keyframes flashInOut { 0% { opacity: 0; transform: translateY(calc(var(--dy) * .25)); } 8% { opacity: 1; transform: none; } 85% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes expandIn { from { grid-template-rows: var(--r0); opacity: 0; } to { grid-template-rows: 1fr; opacity: 1; } }
+@keyframes shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(calc(var(--shake) * -1)); } 40% { transform: translateX(var(--shake)); } 60% { transform: translateX(calc(var(--shake) * -.6)); } 80% { transform: translateX(calc(var(--shake) * .4)); } }
+@keyframes drawerIn { from { transform: translateX(var(--dx)); opacity: var(--o0); } to { transform: none; opacity: 1; } }
+@keyframes drawerOut { from { transform: none; opacity: 1; } to { transform: translateX(var(--dx)); opacity: var(--o0); } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes modalIn { from { opacity: 0; translate: 0 var(--dy); } to { opacity: 1; translate: 0 0; } }
+
+/* เปลี่ยนหน้า (app/template.tsx remount ทุกครั้งที่นำทาง) + การ์ดที่เป็น .stagger ใช้ reveal แทน */
+.anim-page > :not(.stagger) { animation: pageIn var(--dur) ease-out both; }
+/* reveal การ์ดตอนเข้าจอ : .rv-on อยู่บน <html> เฉพาะเมื่อ browser รองรับ IntersectionObserver และไม่ได้ตั้ง reduced-motion */
+.rv-on .rv:not(.in) { opacity: 0; transform: translateY(var(--dy)); }
+.rv.in:not(.now) { animation: pageIn var(--dur) ease-out both; animation-delay: var(--rd, 0ms); }
+.badge-pop { animation: badgePop .22s ease-out; }
+.num-bump { animation: numBump .18s ease-out; }
+.flash-anim { animation: flashInOut 2s linear both; }
+/* กล่องที่ขยาย/ยุบด้วย grid-template-rows 0fr<->1fr */
+.xp { display: grid; grid-template-rows: 1fr; }
+.xp > .xp-in { min-height: 0; overflow: hidden; }
+.xp.expand-in { animation: expandIn var(--dur) ease-out both; }
+.xp.collapsing { grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .2s ease-out, opacity .2s ease-out; }
+@media (prefers-reduced-motion: reduce) { .xp.collapsing { grid-template-rows: 1fr; transition: opacity .12s ease-out; } }
+.shake { animation: shake .24s ease-out 1; }
+.drawer-in { animation: drawerIn .22s ease-out both; }
+.drawer-out { animation: drawerOut .18s ease-in both; }
+.fade-in { animation: fadeIn .2s ease-out both; }
+.fade-out { animation: fadeOut .18s ease-in both; }
+.modal-in { animation: modalIn .2s ease-out both; }
+.toast { position: fixed; left: 50%; bottom: 1rem; transform: translate(-50%, 16px); opacity: 0; visibility: hidden; transition: transform .2s ease-out, opacity .2s ease-out, visibility 0s linear .2s; }
+.toast.show { transform: translate(-50%, 0); opacity: 1; visibility: visible; transition-delay: 0s; }
+@media (prefers-reduced-motion: reduce) { .toast { transform: translate(-50%, 0); } }
+
+/* rolling digit (odometer) */
+@keyframes rollOut { from { transform: translateY(0); opacity: 1; } to { transform: translateY(calc(var(--roll) * -1)); opacity: 0; } }
+@keyframes rollIn { from { transform: translateY(var(--roll)); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes rollW { from { width: var(--w0); } to { width: var(--w1); } }
+.roll { display: inline-grid; grid-template-columns: minmax(0, 1fr); justify-items: center; overflow: hidden; vertical-align: top; text-align: center; height: 1.35em; height: 1lh; animation: rollW .25s ease-out both; }
+.roll > * { grid-area: 1/1; display: block; white-space: nowrap; }
+.roll.roll-static { animation: none; }
+.roll-old { animation: rollOut .25s ease-out both; }
+.roll-new { animation: rollIn .25s ease-out both; }
+
+/* chip: ตัวเลขใน stepper หลุดออกมาลอยโค้งไปหา badge แล้วกลายเป็น "+N" */
+@keyframes chipX { from { transform: translateX(var(--x0)); } to { transform: translateX(var(--x1)); } }
+@keyframes chipY { from { transform: translateY(var(--y0)); } to { transform: translateY(var(--y1)); } }
+@keyframes chipS { 0% { opacity: 1; transform: translate(-50%, -50%) scale(var(--s0)); } 70% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(.9); } }
+@keyframes chipBg { 0%, 20% { opacity: 0; } 60%, 100% { opacity: 1; } }
+@keyframes chipN { 0%, 25% { opacity: 1; } 55%, 100% { opacity: 0; } }
+@keyframes chipP { 0%, 30% { opacity: 0; } 60%, 100% { opacity: 1; } }
+@keyframes stepRefill { 0%, 35% { opacity: 0; } 100% { opacity: 1; } }
+.chip { position: fixed; left: 0; top: 0; z-index: 70; pointer-events: none; animation: chipX .46s cubic-bezier(.5, 0, .7, 1) both; }
+.chip-y { display: block; animation: chipY .46s cubic-bezier(.15, .7, .35, 1) both; }
+.chip-s { position: relative; display: inline-grid; place-items: center; font-size: .75rem; line-height: 1; padding: .3rem .6rem; white-space: nowrap; animation: chipS .46s linear both; }
+.chip-bg { position: absolute; inset: 0; border-radius: 9999px; background: #047857; box-shadow: 0 4px 10px rgba(0,0,0,.2); animation: chipBg .46s linear both; }
+.chip-n, .chip-p { grid-area: 1/1; position: relative; font-weight: 600; }
+.chip-n { color: #1c1917; animation: chipN .46s linear both; }
+.chip-p { color: #fff; animation: chipP .46s linear both; }
+.step-reset { animation: stepRefill .35s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .step-reset { animation-duration: .12s; } }
+
+/* นำเข้า Excel */
+.in-up { animation: pageIn var(--dur) ease-out both; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulseDot { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+.spinner { width: 2rem; height: 2rem; border-radius: 9999px; border: 3px solid #d6d3d1; border-top-color: #047857; animation: spin .8s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: pulseDot 1.2s ease-in-out infinite; border-top-color: #d6d3d1; background: #047857; } }
+.dz { transition: background-color .15s ease-out, border-color .15s ease-out; }
+.dz.drag { background: #ecfdf5; border-color: #047857; }
+.sr-only-in { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ปุ่มทุกปุ่ม */
+button { transition: background-color .15s ease-out, border-color .15s ease-out, color .15s ease-out, transform .1s ease-out, box-shadow .15s ease-out, opacity .15s ease-out; }
+button:not(:disabled):active { transform: scale(.97); }
+@media (prefers-reduced-motion: reduce) { button:not(:disabled):active { transform: none; } }
